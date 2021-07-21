@@ -1,0 +1,26 @@
+{
+  "name": "@nervos/layer2-integration",
+  "version": "0.0.5",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/**/*"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ckb-lumos/base": "^0.16.0",
+    "@lay2/pw-core": "0.4.0-alpha.9",
+    "ckb-js-toolkit": "^0.10.2"
+  },
+  "devDependencies": {
+    "typescript": "^4.2.4",
+    "@types/elliptic": "^6.4.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Roger-RumbleFish/nervos-layer2-integration.git"
+  }
+}
