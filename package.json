@@ -13,7 +13,10 @@
   "dependencies": {
     "@ckb-lumos/base": "^0.16.0",
     "@lay2/pw-core": "0.4.0-alpha.9",
-    "ckb-js-toolkit": "^0.10.2"
+    "@nervosnetwork/ckb-types": "^0.39.0",
+    "ckb-js-toolkit": "^0.10.2",
+    "ethers": "^5.4.1",
+    "json-rpc-2.0": "^0.2.16"
   },
   "devDependencies": {
     "@types/elliptic": "^6.4.13",
