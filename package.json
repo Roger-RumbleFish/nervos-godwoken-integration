@@ -1,5 +1,5 @@
 {
-  "name": "nervos-layer2-integration",
+  "name": "nervos-godwoken-integration",
   "version": "0.0.1",
   "license": "MIT",
   "main": "lib/index.js",
@@ -25,6 +25,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:Roger-RumbleFish/nervos-layer2-integration.git"
+    "url": "git@github.com:Roger-RumbleFish/nervos-godwoken-integration.git"
   }
 }
