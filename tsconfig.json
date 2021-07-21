@@ -12,6 +12,9 @@
     "target": "ESNext",
     "outDir": "lib",
     "rootDir": "src",
+    "types": [
+      "@nervosnetwork/ckb-types"
+    ],
   },
   "include": [
     "src"
