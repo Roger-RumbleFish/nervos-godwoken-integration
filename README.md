@@ -1,1 +1,1 @@
-# nervos-layer2-integration
+# nervos-godwoken-integration
