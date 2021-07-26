@@ -8,7 +8,7 @@ import PWCore, {
 import { Script, HexString, utils, Hash, PackedSince } from "@ckb-lumos/base";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
-import { DeploymentConfig, ROLLUP_TYPE_HASH } from "../config/types";
+import { DeploymentConfig } from "../config/types";
 import {
   generateDeployConfig,
   generateDepositionLock,
@@ -32,6 +32,7 @@ export class AddressTranslator {
         eth_account_lock_script_type_hash:
           defaultConfig.eth_account_lock.script_type_hash,
         rollup_type_script: defaultConfig.chain.rollup_type_script,
+        rollup_type_hash: defaultConfig.rollup_script_hash
       };
     }
 
@@ -96,18 +97,15 @@ export class AddressTranslator {
       throw new Error("eth address format error!");
     }
 
-    const deploymentConfig = generateDeployConfig(
-      this._config.deposit_lock_script_type_hash,
-      this._config.eth_account_lock_script_type_hash
-    );
-
     const layer2Lock: Script = {
-      code_hash: deploymentConfig.eth_account_lock.code_hash,
-      hash_type: deploymentConfig.eth_account_lock.hash_type as "data" | "type",
-      args: ROLLUP_TYPE_HASH + ethAddress.slice(2).toLowerCase(),
+      code_hash: this._config.eth_account_lock_script_type_hash,
+      hash_type: "type",
+      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
+
     const scriptHash = utils.computeScriptHash(layer2Lock);
     const shortAddress = scriptHash.slice(0, 42);
+    
     return shortAddress;
   }
 }
