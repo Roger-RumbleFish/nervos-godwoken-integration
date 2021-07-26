@@ -16,4 +16,5 @@ export interface IAddressTranslatorConfig {
     hash_type: string;
     args: string;
   };
+  rollup_type_hash: string
 }
