@@ -19,6 +19,24 @@
     immutable "^4.0.0-rc.12"
     js-xxhash "^1.0.4"
 
+"@ckb-lumos/config-manager@^0.16.0":
+  version "0.16.0"
+  resolved "https://registry.npmjs.org/@ckb-lumos/config-manager/-/config-manager-0.16.0.tgz#ddff6bf76f9f7b50f5005f8f45120cffc40f1e3e"
+  integrity sha512-NoctI6I1/SsVxzuwIbl4Qy4CCtmGPQxxTQr53zI5Jo3UAngrlVpj+fDWOjhAcR8r1U7IZRttJmNeye06JU6I/w==
+  dependencies:
+    deep-freeze-strict "^1.1.1"
+
+"@ckb-lumos/helpers@^0.16.0":
+  version "0.16.0"
+  resolved "https://registry.npmjs.org/@ckb-lumos/helpers/-/helpers-0.16.0.tgz#044e5581ae1e45244881dd011791622135c28374"
+  integrity sha512-FYNQTHEfkjHmwXetznWrkodXrBAo+Thqp7G4wMU9RkipAUHUxUxBF93+lhKprSUR1jfEmZrIsjikYvLGYGgiFQ==
+  dependencies:
+    "@ckb-lumos/base" "^0.16.0"
+    "@ckb-lumos/config-manager" "^0.16.0"
+    bech32 "^1.1.4"
+    ckb-js-toolkit "^0.10.2"
+    immutable "^4.0.0-rc.12"
+
 "@ethereumjs/common@^2.3.0", "@ethereumjs/common@^2.4.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@ethereumjs/common/-/common-2.4.0.tgz#2d67f6e6ba22246c5c89104e6b9a119fb3039766"
@@ -1055,6 +1073,11 @@ decompress-response@^3.2.0, decompress-response@^3.3.0:
   integrity sha1-gKTdMjdIOEv6JICDYirt7Jgq3/M=
   dependencies:
     mimic-response "^1.0.0"
+
+deep-freeze-strict@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.npmjs.org/deep-freeze-strict/-/deep-freeze-strict-1.1.1.tgz#77d0583ca24a69be4bbd9ac2fae415d55523e5b0"
+  integrity sha1-d9BYPKJKab5LvZrC+uQV1VUj5bA=
 
 defer-to-connect@^1.0.1:
   version "1.1.3"

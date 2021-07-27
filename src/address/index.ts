@@ -15,6 +15,7 @@ import {
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
+import { generateAddress } from "@ckb-lumos/helpers";
 
 export class AddressTranslator {
   private _config: IAddressTranslatorConfig;
@@ -32,7 +33,8 @@ export class AddressTranslator {
         eth_account_lock_script_type_hash:
           defaultConfig.eth_account_lock.script_type_hash,
         rollup_type_script: defaultConfig.chain.rollup_type_script,
-        rollup_type_hash: defaultConfig.rollup_script_hash
+        rollup_type_hash: defaultConfig.rollup_script_hash,
+        portal_wallet_lock_hash: defaultConfig.portal_wallet_lock_hash,
       };
     }
 
@@ -92,6 +94,27 @@ export class AddressTranslator {
     return depositAddr;
   }
 
+  ethAddressToCkbAddress(
+    ethAddress: HexString,
+    isTestnet: boolean = false
+  ): HexString {
+    const script = {
+      code_hash: this._config.portal_wallet_lock_hash,
+      hash_type: "type",
+      args: ethAddress,
+    };
+    const { predefined } = require("@ckb-lumos/config-manager");
+    const address = generateAddress(
+      script as Script,
+      isTestnet
+        ? {
+            config: predefined.AGGRON4,
+          }
+        : undefined
+    );
+    return address;
+  }
+
   ethAddressToGodwokenShortAddress(ethAddress: HexString): HexString {
     if (ethAddress.length !== 42 || !ethAddress.startsWith("0x")) {
       throw new Error("eth address format error!");
@@ -105,7 +128,7 @@ export class AddressTranslator {
 
     const scriptHash = utils.computeScriptHash(layer2Lock);
     const shortAddress = scriptHash.slice(0, 42);
-    
+
     return shortAddress;
   }
 }

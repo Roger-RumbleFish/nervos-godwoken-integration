@@ -14,5 +14,6 @@
   "eth_account_lock": {
     "script_type_hash": "0xfcf093a5f1df4037cea259d49df005e0e7258b4f63e67233eda5b376b7fd2290"
   },
-  "rollup_script_hash": "0x9b260161e003972c0b699939bc164cfdcfce7fd40eb9135835008dd7e09d3dae"
+  "rollup_script_hash": "0x9b260161e003972c0b699939bc164cfdcfce7fd40eb9135835008dd7e09d3dae",
+  "portal_wallet_lock_hash": "0x58c5f491aba6d61678b7cf7edf4910b1f5e00ec0cde2f42e0abb4fd9aff25a63"
 }
