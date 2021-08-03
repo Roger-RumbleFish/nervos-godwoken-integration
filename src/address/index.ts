@@ -8,13 +8,14 @@ import PWCore, {
 import { Script, HexString, utils, Hash, PackedSince } from "@ckb-lumos/base";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
-import { DeploymentConfig, ROLLUP_TYPE_HASH } from "../config/types";
+import { DeploymentConfig } from "../config/types";
 import {
   generateDeployConfig,
   generateDepositionLock,
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
+import { generateAddress } from "@ckb-lumos/helpers";
 
 export class AddressTranslator {
   private _config: IAddressTranslatorConfig;
@@ -32,6 +33,8 @@ export class AddressTranslator {
         eth_account_lock_script_type_hash:
           defaultConfig.eth_account_lock.script_type_hash,
         rollup_type_script: defaultConfig.chain.rollup_type_script,
+        rollup_type_hash: defaultConfig.rollup_script_hash,
+        portal_wallet_lock_hash: defaultConfig.portal_wallet_lock_hash,
       };
     }
 
@@ -91,23 +94,41 @@ export class AddressTranslator {
     return depositAddr;
   }
 
+  ethAddressToCkbAddress(
+    ethAddress: HexString,
+    isTestnet: boolean = false
+  ): HexString {
+    const script = {
+      code_hash: this._config.portal_wallet_lock_hash,
+      hash_type: "type",
+      args: ethAddress,
+    };
+    const { predefined } = require("@ckb-lumos/config-manager");
+    const address = generateAddress(
+      script as Script,
+      isTestnet
+        ? {
+            config: predefined.AGGRON4,
+          }
+        : undefined
+    );
+    return address;
+  }
+
   ethAddressToGodwokenShortAddress(ethAddress: HexString): HexString {
     if (ethAddress.length !== 42 || !ethAddress.startsWith("0x")) {
       throw new Error("eth address format error!");
     }
 
-    const deploymentConfig = generateDeployConfig(
-      this._config.deposit_lock_script_type_hash,
-      this._config.eth_account_lock_script_type_hash
-    );
-
     const layer2Lock: Script = {
-      code_hash: deploymentConfig.eth_account_lock.code_hash,
-      hash_type: deploymentConfig.eth_account_lock.hash_type as "data" | "type",
-      args: ROLLUP_TYPE_HASH + ethAddress.slice(2).toLowerCase(),
+      code_hash: this._config.eth_account_lock_script_type_hash,
+      hash_type: "type",
+      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
+
     const scriptHash = utils.computeScriptHash(layer2Lock);
     const shortAddress = scriptHash.slice(0, 42);
+
     return shortAddress;
   }
 }
