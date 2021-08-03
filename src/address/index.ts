@@ -2,6 +2,8 @@ import PWCore, {
   Address,
   AddressType,
   IndexerCollector,
+  Provider,
+  RawProvider,
   Script as PwScript,
   Web3ModalProvider,
 } from "@lay2/pw-core";
@@ -67,7 +69,14 @@ export class AddressTranslator {
   }
 
   async getLayer2DepositAddress(web3: any, ethAddr: string): Promise<Address> {
-    const provider = new Web3ModalProvider(web3);
+    let provider: Provider;
+
+    if (await this.checkDefaultWeb3AccountPresent(web3)) {
+      provider = new Web3ModalProvider(web3);
+    } else {
+      provider = new RawProvider('0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5');
+    }
+
     const collector = new IndexerCollector(this._config.INDEXER_URL);
     await new PWCore(this._config.CKB_URL).init(provider, collector);
 
@@ -130,5 +139,11 @@ export class AddressTranslator {
     const shortAddress = scriptHash.slice(0, 42);
 
     return shortAddress;
+  }
+
+  private async checkDefaultWeb3AccountPresent(web3: any) {
+    const accounts = await web3.eth.getAccounts();
+
+    return Boolean(accounts?.[0]);
   }
 }
