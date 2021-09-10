@@ -1,16 +1,20 @@
 import PWCore, {
   Address,
   AddressType,
+  Amount,
+  EthProvider,
   IndexerCollector,
   Provider,
   RawProvider,
   Script as PwScript,
   Web3ModalProvider,
 } from "@lay2/pw-core";
+import { PolyjuiceHttpProvider } from "@polyjuice-provider/web3";
 import { Script, HexString, utils, Hash, PackedSince } from "@ckb-lumos/base";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
+
 import {
   generateDeployConfig,
   generateDepositionLock,
@@ -18,6 +22,7 @@ import {
   serializeArgs,
 } from "./helpers";
 import { generateAddress } from "@ckb-lumos/helpers";
+import Web3 from "web3";
 
 export class AddressTranslator {
   private _config: IAddressTranslatorConfig;
@@ -29,6 +34,7 @@ export class AddressTranslator {
     } else {
       this._config = {
         CKB_URL: defaultConfig.ckb_url,
+        RPC_URL: defaultConfig.rpc_url,
         INDEXER_URL: defaultConfig.indexer_url,
         deposit_lock_script_type_hash:
           defaultConfig.deposit_lock.script_type_hash,
@@ -74,7 +80,9 @@ export class AddressTranslator {
     if (await this.checkDefaultWeb3AccountPresent(web3)) {
       provider = new Web3ModalProvider(web3);
     } else {
-      provider = new RawProvider('0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5');
+      provider = new RawProvider(
+        "0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5"
+      );
     }
 
     const collector = new IndexerCollector(this._config.INDEXER_URL);
@@ -139,6 +147,39 @@ export class AddressTranslator {
     const shortAddress = scriptHash.slice(0, 42);
 
     return shortAddress;
+  }
+
+  /** Call a CKB send transaction from L1-L2 to create an account if it not exist.
+   * Require for user to have ~470 ckb on L1
+   * Need to be called in web with metamask installed */
+  async createLayer2Address(ethereumAddress: HexString): Promise<HexString> {
+    const amount: Amount = new Amount("400", 8);
+
+    const polyjuiceConfig = {
+      web3Url: this._config.RPC_URL,
+    };
+
+    const polyjuiceProvider = new PolyjuiceHttpProvider(
+      this._config.RPC_URL,
+      polyjuiceConfig
+    );
+
+    const web3Provider = new Web3(polyjuiceProvider);
+
+    const l2Address = await this.getLayer2DepositAddress(
+      web3Provider,
+      ethereumAddress
+    );
+
+    const collector = new IndexerCollector(this._config.INDEXER_URL);
+    const pwCore = await new PWCore(this._config.CKB_URL).init(
+      new EthProvider(),
+      collector
+    );
+
+    const tx = await pwCore.send(l2Address, amount);
+
+    return tx;
   }
 
   private async checkDefaultWeb3AccountPresent(web3: any) {

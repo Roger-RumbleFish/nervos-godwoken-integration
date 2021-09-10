@@ -11,13 +11,15 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@ckb-lumos/base": "^0.16.0",
-    "@ckb-lumos/helpers": "^0.16.0",
+    "@ckb-lumos/base": "^0.18.0-rc1",
+    "@ckb-lumos/helpers": "^0.18.0-rc1",
     "@lay2/pw-core": "0.4.0-alpha.9",
     "@nervosnetwork/ckb-types": "^0.39.0",
     "ckb-js-toolkit": "^0.10.2",
     "ethers": "^5.4.1",
-    "json-rpc-2.0": "^0.2.16"
+    "json-rpc-2.0": "^0.2.16",
+    "@polyjuice-provider/web3": "^0.0.1-rc10",
+    "web3": "^1.5.2"
   },
   "devDependencies": {
     "@types/elliptic": "^6.4.13",
