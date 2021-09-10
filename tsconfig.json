@@ -10,7 +10,7 @@
     "resolveJsonModule": true,
     "declaration": true,
     "strict": true,
-    "target": "ESNext",
+    "target": "ES2019",
     "outDir": "lib",
     "rootDir": "src",
     "types": [
