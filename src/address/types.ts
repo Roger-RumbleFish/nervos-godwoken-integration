@@ -8,6 +8,7 @@ export interface DepositionLockArgs {
 
 export interface IAddressTranslatorConfig {
   CKB_URL: string;
+  RPC_URL: string;
   INDEXER_URL: string;
   deposit_lock_script_type_hash: string;
   eth_account_lock_script_type_hash: string;

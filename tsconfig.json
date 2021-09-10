@@ -4,6 +4,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
+    "skipLibCheck": true, // remove after @polyjuice-provider/web3 lib will be fixed
     "module": "CommonJS",
     "moduleResolution": "node",
     "resolveJsonModule": true,
