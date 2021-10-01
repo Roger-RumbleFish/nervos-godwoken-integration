@@ -183,7 +183,7 @@ export class AddressTranslator {
   }
 
   private async checkDefaultWeb3AccountPresent(web3: any) {
-    const accounts = await web3.eth.getAccounts();
+    const accounts = await web3?.eth?.getAccounts();
 
     return Boolean(accounts?.[0]);
   }
