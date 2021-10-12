@@ -1,6 +1,6 @@
 {
   "name": "nervos-godwoken-integration",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -13,12 +13,12 @@
   "dependencies": {
     "@ckb-lumos/base": "0.17.0-rc5",
     "@ckb-lumos/helpers": "0.17.0-rc5",
-    "@lay2/pw-core": "0.4.0-alpha.9",
+    "@lay2/pw-core": "0.4.0-alpha.10",
     "@nervosnetwork/ckb-types": "^0.39.0",
+    "@polyjuice-provider/web3": "^0.0.1-rc11",
     "ckb-js-toolkit": "^0.10.2",
     "ethers": "^5.4.1",
     "json-rpc-2.0": "^0.2.16",
-    "@polyjuice-provider/web3": "^0.0.1-rc11",
     "web3": "^1.5.2"
   },
   "devDependencies": {

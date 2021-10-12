@@ -407,10 +407,10 @@
     "@ethersproject/properties" "^5.4.0"
     "@ethersproject/strings" "^5.4.0"
 
-"@lay2/pw-core@0.4.0-alpha.9":
-  version "0.4.0-alpha.9"
-  resolved "https://registry.yarnpkg.com/@lay2/pw-core/-/pw-core-0.4.0-alpha.9.tgz#67b8ba37c5b9c4f36da17efa97d6f3533bd83b10"
-  integrity sha512-cZWUXifa/1wFqFbVdR+GNZUKPdvVsv/HGMk/dopX0Ar+7rukdSnOpLNPWSwrWTRiQngfwkB+18ETU+jhTg51zw==
+"@lay2/pw-core@0.4.0-alpha.10":
+  version "0.4.0-alpha.10"
+  resolved "https://registry.npmjs.org/@lay2/pw-core/-/pw-core-0.4.0-alpha.10.tgz#4970b7d8768bf03458483765e8b3ec8b2183d0e4"
+  integrity sha512-REJXRs0SJr4JWcdZL+rzRih4/J4kva7QLa8ewrEgHpp/rf1ZDUm3fB6fT0YXSaztNHCOZL5SaKj0bUSGOLTLgw==
   dependencies:
     "@nervosnetwork/ckb-sdk-utils" "^0.41.1"
     "@scatterjs/core" "^2.7.53"
