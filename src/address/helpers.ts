@@ -212,3 +212,7 @@ export const generateDeployConfig = (
     eth_account_lock: buildScriptFromCodeHash(ethAccountLockHash),
   };
 };
+
+export const asyncSleep = async (ms = 1000) => {
+  return new Promise((r) => setTimeout(r, ms));
+};
