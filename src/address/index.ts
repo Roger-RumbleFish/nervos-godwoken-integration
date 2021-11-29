@@ -14,7 +14,7 @@ import PWCore, {
   SimpleSUDTBuilder,
 } from "@lay2/pw-core";
 import { PolyjuiceHttpProvider } from "@polyjuice-provider/web3";
-import { Script, HexString, utils, Hash, PackedSince } from "@ckb-lumos/base";
+import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
@@ -26,7 +26,7 @@ import {
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
-import { generateAddress } from "@ckb-lumos/helpers";
+import { generateAddress, parseAddress } from "@ckb-lumos/helpers";
 import Web3 from "web3";
 
 export class AddressTranslator {
@@ -130,8 +130,8 @@ export class AddressTranslator {
       script as Script,
       isTestnet
         ? {
-            config: predefined.AGGRON4,
-          }
+          config: predefined.AGGRON4,
+        }
         : undefined
     );
     return address;
@@ -142,14 +142,8 @@ export class AddressTranslator {
       throw new Error("eth address format error!");
     }
 
-    const layer2Lock: Script = {
-      code_hash: this._config.eth_account_lock_script_type_hash,
-      hash_type: "type",
-      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
-    };
-
-    const scriptHash = utils.computeScriptHash(layer2Lock);
-    const shortAddress = scriptHash.slice(0, 42);
+    const layer2EthLockHash = this.getLayer2EthLockHash(ethAddress)
+    const shortAddress = layer2EthLockHash.slice(0, 42);
 
     return shortAddress;
   }
@@ -187,6 +181,28 @@ export class AddressTranslator {
     return tx;
   }
 
+  getLayer2EthLockHash(
+    ethAddress: string,
+  ): string {
+    
+    const layer2Lock: Script = {
+      code_hash: this._config.eth_account_lock_script_type_hash,
+      hash_type: "type",
+      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
+    };
+
+    const layer2LockHash = utils.computeScriptHash(layer2Lock);
+
+    return layer2LockHash
+  }
+  
+  ckbAddressToLockScriptHash(address: CkbAddress): HexString {
+    const lock = parseAddress(address);
+    const accountLockScriptHash = utils.computeScriptHash(lock);
+    return accountLockScriptHash;
+  }
+  
+  // TODO: Should be moved to bridge layer
   async calculateLayer1ToLayer2Fee(
     web3Provider: Web3,
     ethereumAddress: string,
@@ -202,7 +218,7 @@ export class AddressTranslator {
       minimumOutputCellCapacity: MINIMUM_CKB_CELL_OUTPUT,
     };
 
-    const layer2depositAddress = await this.getLayer2DepositAddress(
+    const layer2DepositAddress = await this.getLayer2DepositAddress(
       web3Provider,
       ethereumAddress
     );
@@ -211,157 +227,13 @@ export class AddressTranslator {
 
     const builder = new SimpleSUDTBuilder(
       sudt,
-      layer2depositAddress,
+      layer2DepositAddress,
       SUDT_AMOUNT_TO_SEND,
       options
     );
 
     return builder;
   }
-
-  async transferFromLayer1ToLayer2(
-    web3Provider: Web3,
-    ethereumAddress: HexString,
-    tokenAddress: string,
-    amount: string
-  ): Promise<string> {
-    // aka Type Script arguments. You should find it in Layer 1 explorer SUDT Cell info.
-    // const SUDT_ISSUER_LOCK_HASH =
-    //   "0xc43009f083e70ae3fee342d59b8df9eec24d669c1c3a3151706d305f5362c37e";
-    // console.log("jestem");
-    const SUDT_AMOUNT_TO_SEND = new Amount(amount, AmountUnit.ckb);
-    const MINIMUM_CKB_CELL_OUTPUT = new Amount("400", AmountUnit.ckb);
-
-    // const polyjuiceConfig = {
-    //   web3Url: this._config.RPC_URL,
-    // };
-
-    // console.log("przed polyjuice http");
-    // const polyjuiceProvider = new PolyjuiceHttpProvider(
-    //   this._config.RPC_URL,
-    //   polyjuiceConfig
-    // );
-
-    // console.log("po polyjuice http");
-
-    // const web3Provider = new Web3(polyjuiceProvider);
-    // console.log("przed stworzeniem deposit address");
-    // const layer2depositAddress = await this.getLayer2DepositAddress(
-    //   null as any,
-    //   ethereumAddress
-    // );
-
-    // console.log("stworzyłem deposit address");
-
-    // const collector = new IndexerCollector(this._config.INDEXER_URL);
-    // console.log("stworzyłem collectora");
-    // const pwCore = await new PWCore(this._config.CKB_URL).init(
-    //   new EthProvider(),
-    //   collector
-    // );
-
-    console.log("provider created");
-
-    // const polyjuiceConfig = {
-    //   web3Url: this._config.RPC_URL,
-    // };
-
-    // const polyjuiceProvider = new PolyjuiceHttpProvider(
-    //   this._config.RPC_URL,
-    //   polyjuiceConfig
-    // );
-
-    // const web3Provider = new Web3(polyjuiceProvider);
-
-    const layer2depositAddress = await this.getLayer2DepositAddress(
-      web3Provider,
-      ethereumAddress
-    );
-
-    // console.log(
-    //   `Deposit to Layer 2 address on Layer 1: \n${layer2depositAddress.addressString}`
-    // );
-
-    let provider: Provider;
-
-    // TODO move to a function
-    if (await this.checkDefaultWeb3AccountPresent(web3Provider)) {
-      provider = new Web3ModalProvider(web3Provider);
-    } else {
-      throw Error("not connected");
-    }
-
-    const collector = new IndexerCollector(this._config.INDEXER_URL);
-    const pwCore = await new PWCore(this._config.CKB_URL).init(
-      provider,
-      collector
-    );
-
-    const ckbAddress = provider.address;
-
-    // const ckbAddress = new Address(
-    //   "0x66ab6d9362d4f35596279692f0251db635165871",
-    //   0,
-    //   undefined
-    // );
-
-    console.log(`Transferring from CKB address: ${ckbAddress.toCKBAddress()}`);
-
-    const sudt = new SUDT(tokenAddress);
-    const sudtBalance = await collector.getSUDTBalance(sudt, ckbAddress);
-
-    const options = {
-      witnessArgs: Builder.WITNESS_ARGS.RawSecp256k1,
-      autoCalculateCapacity: true,
-      minimumOutputCellCapacity: MINIMUM_CKB_CELL_OUTPUT,
-    };
-
-    console.log(`SUDT balance: ${sudtBalance}`);
-
-    if (sudtBalance.lt(SUDT_AMOUNT_TO_SEND)) {
-      throw Error(
-        `
-            You don't have enough SUDT balance.
-            Required balance: "${SUDT_AMOUNT_TO_SEND.toString()}".
-            Your balance: "${sudtBalance.toString()}".
-            Try sending more SUDT tokens to your Layer 1 address: "${
-              ckbAddress.addressString
-            }".    
-        `
-      );
-    }
-
-    const layer1TxHash = await pwCore.sendSUDT(
-      sudt,
-      layer2depositAddress,
-      SUDT_AMOUNT_TO_SEND,
-      true,
-      undefined,
-      options
-    );
-
-    return layer1TxHash;
-  }
-
-  // private async transactionConfirmed(txHash: string, rpc: RPC) {
-  //   const timeout = 18;
-
-  //   for (let index = 0; index < timeout; index++) {
-  //     const data = await rpc.get_transaction(txHash);
-  //     const status = data.tx_status.status;
-
-  //     console.log(
-  //       `tx ${txHash} is ${status}, waited for ${index * 10} seconds`
-  //     );
-
-  //     await asyncSleep(10000);
-  //     if (status === "committed") {
-  //       return;
-  //     }
-  //   }
-
-  //   throw new Error(`tx ${txHash} not committed in ${timeout * 10} seconds`);
-  // }
 
   private async checkDefaultWeb3AccountPresent(web3: any) {
     const accounts = await web3?.eth?.getAccounts();
