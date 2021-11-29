@@ -8,9 +8,13 @@ import PWCore, {
   RawProvider,
   Script as PwScript,
   Web3ModalProvider,
+  SUDT,
+  Builder,
+  AmountUnit,
+  SimpleSUDTBuilder,
 } from "@lay2/pw-core";
 import { PolyjuiceHttpProvider } from "@polyjuice-provider/web3";
-import { Script, HexString, utils, Hash, PackedSince } from "@ckb-lumos/base";
+import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
@@ -21,7 +25,7 @@ import {
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
-import { generateAddress } from "@ckb-lumos/helpers";
+import { generateAddress, parseAddress } from "@ckb-lumos/helpers";
 import Web3 from "web3";
 
 export class AddressTranslator {
@@ -125,8 +129,8 @@ export class AddressTranslator {
       script as Script,
       isTestnet
         ? {
-            config: predefined.AGGRON4,
-          }
+          config: predefined.AGGRON4,
+        }
         : undefined
     );
     return address;
@@ -137,14 +141,8 @@ export class AddressTranslator {
       throw new Error("eth address format error!");
     }
 
-    const layer2Lock: Script = {
-      code_hash: this._config.eth_account_lock_script_type_hash,
-      hash_type: "type",
-      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
-    };
-
-    const scriptHash = utils.computeScriptHash(layer2Lock);
-    const shortAddress = scriptHash.slice(0, 42);
+    const layer2EthLockHash = this.getLayer2EthLockHash(ethAddress)
+    const shortAddress = layer2EthLockHash.slice(0, 42);
 
     return shortAddress;
   }
@@ -180,6 +178,60 @@ export class AddressTranslator {
     const tx = await pwCore.send(l2Address, amount);
 
     return tx;
+  }
+
+  getLayer2EthLockHash(
+    ethAddress: string,
+  ): string {
+    
+    const layer2Lock: Script = {
+      code_hash: this._config.eth_account_lock_script_type_hash,
+      hash_type: "type",
+      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
+    };
+
+    const layer2LockHash = utils.computeScriptHash(layer2Lock);
+
+    return layer2LockHash
+  }
+  
+  ckbAddressToLockScriptHash(address: CkbAddress): HexString {
+    const lock = parseAddress(address);
+    const accountLockScriptHash = utils.computeScriptHash(lock);
+    return accountLockScriptHash;
+  }
+  
+  // TODO: Should be moved to bridge layer
+  async calculateLayer1ToLayer2Fee(
+    web3Provider: Web3,
+    ethereumAddress: string,
+    tokenAddress: string,
+    amount: string
+  ): Promise<SimpleSUDTBuilder> {
+    const MINIMUM_CKB_CELL_OUTPUT = new Amount("400", AmountUnit.ckb);
+    const SUDT_AMOUNT_TO_SEND = new Amount(amount, AmountUnit.ckb);
+
+    const options = {
+      witnessArgs: Builder.WITNESS_ARGS.RawSecp256k1,
+      autoCalculateCapacity: true,
+      minimumOutputCellCapacity: MINIMUM_CKB_CELL_OUTPUT,
+    };
+
+    const layer2DepositAddress = await this.getLayer2DepositAddress(
+      web3Provider,
+      ethereumAddress
+    );
+
+    const sudt = new SUDT(tokenAddress);
+
+    const builder = new SimpleSUDTBuilder(
+      sudt,
+      layer2DepositAddress,
+      SUDT_AMOUNT_TO_SEND,
+      options
+    );
+
+    return builder;
   }
 
   private async checkDefaultWeb3AccountPresent(web3: any) {

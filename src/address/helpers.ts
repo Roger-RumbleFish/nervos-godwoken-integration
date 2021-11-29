@@ -212,3 +212,4 @@ export const generateDeployConfig = (
     eth_account_lock: buildScriptFromCodeHash(ethAccountLockHash),
   };
 };
+
