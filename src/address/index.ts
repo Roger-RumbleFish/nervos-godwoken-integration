@@ -20,7 +20,6 @@ import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 
 import {
-  asyncSleep,
   generateDeployConfig,
   generateDepositionLock,
   getRollupTypeHash,

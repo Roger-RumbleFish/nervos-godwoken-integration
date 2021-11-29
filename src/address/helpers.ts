@@ -213,6 +213,3 @@ export const generateDeployConfig = (
   };
 };
 
-export const asyncSleep = async (ms = 1000) => {
-  return new Promise((r) => setTimeout(r, ms));
-};
