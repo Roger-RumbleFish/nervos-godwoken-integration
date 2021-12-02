@@ -79,10 +79,6 @@ export class AddressTranslator {
   }
 
   async getLayer2DepositAddress(web3: any, ethAddress: string, portalWalletChainId?: PortalWalletChainID, portalWalletConfig?: PortalWalletConfig): Promise<Address> {
-    if (typeof(portalWalletChainId) !== 'undefined' && ![PortalWalletChainID.ckb, PortalWalletChainID.ckb_testnet].includes(portalWalletChainId)) {
-      PWCore.setChainId(portalWalletChainId, portalWalletConfig);
-    }
-
     let provider: Provider;
 
     if (await this.checkDefaultWeb3AccountPresent(web3)) {
@@ -94,7 +90,7 @@ export class AddressTranslator {
     }
 
     const collector = new IndexerCollector(this._config.INDEXER_URL);
-    await new PWCore(this._config.CKB_URL).init(provider, collector);
+    await new PWCore(this._config.CKB_URL).init(provider, collector, portalWalletChainId, portalWalletConfig);
 
     const pwAddress = new Address(ethAddress, AddressType.eth);
     const ownerLockHash = pwAddress.toLockScript().toHash();
