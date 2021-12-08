@@ -57,9 +57,7 @@ export class AddressTranslator {
   private _config: IAddressTranslatorConfig;
   private _deploymentConfig: DeploymentConfig;
 
-  private _isTestnet: boolean;
-
-  constructor(config?: IAddressTranslatorConfig, isTestnet: boolean = false) {
+  constructor(config?: IAddressTranslatorConfig) {
     if (config) {
       this._config = config;
     } else {
@@ -77,8 +75,6 @@ export class AddressTranslator {
       };
     }
 
-    this._isTestnet = isTestnet
-
     this._deploymentConfig = generateDeployConfig(
       this._config.deposit_lock_script_type_hash,
       this._config.eth_account_lock_script_type_hash
@@ -90,13 +86,10 @@ export class AddressTranslator {
   }
 
   public async init(pwCore?: PWCore, pwChainId = ChainID.ckb_testnet) {
-    const indexerUrl = this._config.INDEXER_URL
-
     const provider = await createPWCoreProvider()
-    const collector = new IndexerCollector(indexerUrl);
+    const collector = new IndexerCollector(this._config.INDEXER_URL);
 
     this._pwCore?.init(provider, collector)
-
     if (pwCore) {
       this._pwCore = pwCore;
       PWCore.setChainId(pwChainId)
@@ -167,9 +160,10 @@ export class AddressTranslator {
       args: ethAddress,
     };
     const { predefined } = require("@ckb-lumos/config-manager");
+
     const address = generateAddress(
       script as Script,
-      this._isTestnet
+      PWCore.chainId === ChainID.ckb_testnet
         ? {
           config: predefined.AGGRON4,
         }
@@ -207,7 +201,6 @@ export class AddressTranslator {
   getLayer2EthLockHash(
     ethAddress: string,
   ): string {
-
     const layer2Lock: Script = {
       code_hash: this._config.eth_account_lock_script_type_hash,
       hash_type: "type",
