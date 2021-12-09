@@ -17,7 +17,7 @@ import PWCore, {
 import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
 import { generateAddress, parseAddress, Options } from "@ckb-lumos/helpers";
 import defaultConfig from "../config/config.json";
-import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
+import { DepositionLockArgs, IAddressTranslatorConfig, PortalWalletChainID, PortalWalletConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 
 import {
