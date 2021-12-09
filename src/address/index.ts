@@ -12,8 +12,8 @@ import PWCore, {
   Builder,
   AmountUnit,
   SimpleSUDTBuilder,
+  ChainID
 } from "@lay2/pw-core";
-import { PolyjuiceHttpProvider } from "@polyjuice-provider/web3";
 import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
 import { generateAddress, parseAddress, Options } from "@ckb-lumos/helpers";
 import defaultConfig from "../config/config.json";
@@ -26,10 +26,34 @@ import {
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
-
 import Web3 from "web3";
 
+async function createPWCoreProvider() {
+  let provider: Provider;
+
+  const web3 = new Web3(Web3.givenProvider)
+
+  if (await isAnyAccountConnected(web3)) {
+    provider = new Web3ModalProvider(web3);
+  } else if (typeof (window) !== 'undefined' && Boolean((window as any).web3)) {
+    provider = new EthProvider();
+  } else {
+    provider = new RawProvider(
+      "0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5"
+    );
+  }
+
+  return provider
+}
+
+async function isAnyAccountConnected(web3: any) {
+  const accounts = await web3?.eth?.getAccounts();
+
+  return Boolean(accounts?.[0]);
+}
 export class AddressTranslator {
+  private _pwCore: PWCore;
+
   private _config: IAddressTranslatorConfig;
   private _deploymentConfig: DeploymentConfig;
 
@@ -55,6 +79,21 @@ export class AddressTranslator {
       this._config.deposit_lock_script_type_hash,
       this._config.eth_account_lock_script_type_hash
     );
+
+    const ckbUrl = this._config.CKB_URL
+
+    this._pwCore = new PWCore(ckbUrl);
+  }
+
+  public async init(pwCore?: PWCore, pwChainId = ChainID.ckb_testnet) {
+    const provider = await createPWCoreProvider()
+    const collector = new IndexerCollector(this._config.INDEXER_URL);
+
+    this._pwCore?.init(provider, collector)
+    if (pwCore) {
+      this._pwCore = pwCore;
+      PWCore.setChainId(pwChainId)
+    }
   }
 
   private getDepositionLockArgs(
@@ -101,24 +140,11 @@ export class AddressTranslator {
     return depositAddr;
   }
 
-  async getDefaultLockLayer2DepositAddress(ckbAddress: string, ethAddress: string, lumosOptions?: Options) {
-    return this.getLayer2DepositAddressByOwnerLock(this.ckbAddressToLockScriptHash(ckbAddress, lumosOptions), ethAddress);
+  async getDefaultLockLayer2DepositAddress(ckbAddress: string, ethAddress: string) {
+    return this.getLayer2DepositAddressByOwnerLock(this.ckbAddressToLockScriptHash(ckbAddress), ethAddress);
   }
 
-  async getLayer2DepositAddress(web3: any, ethAddress: string, portalWalletChainId?: PortalWalletChainID, portalWalletConfig?: PortalWalletConfig): Promise<Address> {
-    let provider: Provider;
-
-    if (await this.checkDefaultWeb3AccountPresent(web3)) {
-      provider = new Web3ModalProvider(web3);
-    } else {
-      provider = new RawProvider(
-        "0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5"
-      );
-    }
-
-    const collector = new IndexerCollector(this._config.INDEXER_URL);
-    await new PWCore(this._config.CKB_URL).init(provider, collector, portalWalletChainId, portalWalletConfig);
-
+  async getLayer2DepositAddress(ethAddress: string): Promise<Address> {
     const pwAddress = new Address(ethAddress, AddressType.eth);
     const ownerLockHash = pwAddress.toLockScript().toHash();
 
@@ -127,7 +153,6 @@ export class AddressTranslator {
 
   ethAddressToCkbAddress(
     ethAddress: HexString,
-    isTestnet: boolean = false
   ): HexString {
     const script = {
       code_hash: this._config.portal_wallet_lock_hash,
@@ -135,9 +160,10 @@ export class AddressTranslator {
       args: ethAddress,
     };
     const { predefined } = require("@ckb-lumos/config-manager");
+
     const address = generateAddress(
       script as Script,
-      isTestnet
+      PWCore.chainId === ChainID.ckb_testnet
         ? {
           config: predefined.AGGRON4,
         }
@@ -163,29 +189,11 @@ export class AddressTranslator {
   async createLayer2Address(ethereumAddress: HexString): Promise<HexString> {
     const amount: Amount = new Amount("400", 8);
 
-    const polyjuiceConfig = {
-      web3Url: this._config.RPC_URL,
-    };
-
-    const polyjuiceProvider = new PolyjuiceHttpProvider(
-      this._config.RPC_URL,
-      polyjuiceConfig
-    );
-
-    const web3Provider = new Web3(polyjuiceProvider);
-
     const l2Address = await this.getLayer2DepositAddress(
-      web3Provider,
       ethereumAddress
     );
 
-    const collector = new IndexerCollector(this._config.INDEXER_URL);
-    const pwCore = await new PWCore(this._config.CKB_URL).init(
-      new EthProvider(),
-      collector
-    );
-
-    const tx = await pwCore.send(l2Address, amount);
+    const tx = await this._pwCore.send(l2Address, amount);
 
     return tx;
   }
@@ -193,7 +201,6 @@ export class AddressTranslator {
   getLayer2EthLockHash(
     ethAddress: string,
   ): string {
-    
     const layer2Lock: Script = {
       code_hash: this._config.eth_account_lock_script_type_hash,
       hash_type: "type",
@@ -204,16 +211,15 @@ export class AddressTranslator {
 
     return layer2LockHash
   }
-  
-  ckbAddressToLockScriptHash(address: CkbAddress, lumosOptions?: Options): HexString {
-    const lock = parseAddress(address, lumosOptions);
+
+  ckbAddressToLockScriptHash(address: CkbAddress): HexString {
+    const lock = parseAddress(address);
     const accountLockScriptHash = utils.computeScriptHash(lock);
     return accountLockScriptHash;
   }
-  
+
   // TODO: Should be moved to bridge layer
   async calculateLayer1ToLayer2Fee(
-    web3Provider: Web3,
     ethereumAddress: string,
     tokenAddress: string,
     amount: string
@@ -228,7 +234,6 @@ export class AddressTranslator {
     };
 
     const layer2DepositAddress = await this.getLayer2DepositAddress(
-      web3Provider,
       ethereumAddress
     );
 
@@ -242,11 +247,5 @@ export class AddressTranslator {
     );
 
     return builder;
-  }
-
-  private async checkDefaultWeb3AccountPresent(web3: any) {
-    const accounts = await web3?.eth?.getAccounts();
-
-    return Boolean(accounts?.[0]);
   }
 }
