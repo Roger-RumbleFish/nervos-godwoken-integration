@@ -12,12 +12,13 @@ import PWCore, {
   Builder,
   AmountUnit,
   SimpleSUDTBuilder,
-  ChainID
+  ChainID,
+  Config
 } from "@lay2/pw-core";
 import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
-import { generateAddress, parseAddress, Options } from "@ckb-lumos/helpers";
+import { generateAddress, parseAddress } from "@ckb-lumos/helpers";
 import defaultConfig from "../config/config.json";
-import { DepositionLockArgs, IAddressTranslatorConfig, PortalWalletChainID, PortalWalletConfig } from "./types";
+import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 
 import {
@@ -85,14 +86,14 @@ export class AddressTranslator {
     this._pwCore = new PWCore(ckbUrl);
   }
 
-  public async init(pwCore?: PWCore, pwChainId = ChainID.ckb_testnet) {
+  public async init(pwCore?: PWCore, pwConfig?: Config, pwChainId = ChainID.ckb_testnet) {
     const provider = await createPWCoreProvider()
     const collector = new IndexerCollector(this._config.INDEXER_URL);
 
-    this._pwCore?.init(provider, collector)
+    await this._pwCore?.init(provider, collector)
     if (pwCore) {
       this._pwCore = pwCore;
-      PWCore.setChainId(pwChainId)
+      PWCore.setChainId(pwChainId, pwConfig)
     }
   }
 
