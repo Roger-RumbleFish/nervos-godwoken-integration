@@ -1,8 +1,5 @@
 import { Script, Hash, PackedSince } from "@ckb-lumos/base";
 
-export { ChainID as PortalWalletChainID } from "@lay2/pw-core";
-export type { Config as PortalWalletConfig } from "@lay2/pw-core";
-
 export interface DepositionLockArgs {
   owner_lock_hash: Hash;
   layer2_lock: Script;
