@@ -1,4 +1,4 @@
-import { Script } from "@ckb-lumos/base";
+import { Script } from "@ckb-lumos/lumos";
 
 export interface DeploymentConfig {
   deposition_lock: Script;

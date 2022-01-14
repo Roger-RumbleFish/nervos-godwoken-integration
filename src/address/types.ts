@@ -1,4 +1,4 @@
-import { Script, Hash, PackedSince } from "@ckb-lumos/base";
+import { Script, Hash, PackedSince } from "@ckb-lumos/lumos";
 
 export interface DepositionLockArgs {
   owner_lock_hash: Hash;

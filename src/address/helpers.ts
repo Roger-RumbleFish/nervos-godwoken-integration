@@ -1,5 +1,5 @@
 import { normalizers, Reader } from "ckb-js-toolkit";
-import { Script, HexString, Hash, utils } from "@ckb-lumos/base";
+import { Script, HexString, Hash, utils } from "@ckb-lumos/lumos";
 
 import { DeploymentConfig } from "../config/types";
 import { DepositionLockArgs } from "./types";

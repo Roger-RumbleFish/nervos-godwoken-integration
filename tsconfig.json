@@ -14,13 +14,14 @@
     "outDir": "lib",
     "rootDir": "src",
     "types": [
-      "@nervosnetwork/ckb-types"
+      "@nervosnetwork/ckb-types",
+      "jest"
     ],
   },
   "include": [
     "src"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
   ]
 }
