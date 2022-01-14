@@ -15,8 +15,7 @@ import PWCore, {
   ChainID,
   Config
 } from "@lay2/pw-core";
-import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
-import { generateAddress, parseAddress } from "@ckb-lumos/helpers";
+import { helpers, Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
@@ -28,6 +27,8 @@ import {
   serializeArgs,
 } from "./helpers";
 import Web3 from "web3";
+
+const { generateAddress, parseAddress } = helpers;
 
 async function createPWCoreProvider() {
   let provider: Provider;
@@ -48,6 +49,10 @@ async function createPWCoreProvider() {
 }
 
 async function isAnyAccountConnected(web3: any) {
+  if (!web3?.provider) {
+    return false;
+  }
+
   const accounts = await web3?.eth?.getAccounts();
 
   return Boolean(accounts?.[0]);
@@ -147,6 +152,11 @@ export class AddressTranslator {
 
   async getLayer2DepositAddress(ethAddress: string): Promise<Address> {
     const pwAddress = new Address(ethAddress, AddressType.eth);
+
+    if (!PWCore?.config) {
+      throw new Error('PWCore.config is empty. Did you call <AddressTranslator>.init() function?');
+    }
+
     const ownerLockHash = pwAddress.toLockScript().toHash();
 
     return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, pwAddress.lockArgs!);
