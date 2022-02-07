@@ -20,6 +20,8 @@ import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 
+const { parseAddress, generateAddress } = helpers
+
 import {
   generateDeployConfig,
   generateDepositionLock,
@@ -28,14 +30,11 @@ import {
 } from "./helpers";
 import Web3 from "web3";
 
-const { generateAddress, parseAddress } = helpers;
-
-async function createPWCoreProvider() {
+function createPWCoreProvider() {
   let provider: Provider;
 
   const web3 = new Web3(Web3.givenProvider)
-
-  if (await isAnyAccountConnected(web3)) {
+  if (isAnyAccountConnected(web3)) {
     provider = new Web3ModalProvider(web3);
   } else if (typeof (window) !== 'undefined' && Boolean((window as any).web3)) {
     provider = new EthProvider();
@@ -48,20 +47,22 @@ async function createPWCoreProvider() {
   return provider
 }
 
-async function isAnyAccountConnected(web3: any) {
-  if (!web3?.provider) {
-    return false;
+function isAnyAccountConnected(web3: any) {
+  let accounts;
+  try {
+    accounts = web3?.eth?.accounts
+  } catch(error) {
+    console.error(error)
   }
-
-  const accounts = await web3?.eth?.getAccounts();
 
   return Boolean(accounts?.[0]);
 }
-export class AddressTranslator {
-  private _pwCore: PWCore;
 
-  private _config: IAddressTranslatorConfig;
-  private _deploymentConfig: DeploymentConfig;
+export class AddressTranslator {
+  private _pwCore: PWCore
+
+  private _config: IAddressTranslatorConfig
+  private _deploymentConfig: DeploymentConfig
 
   constructor(config?: IAddressTranslatorConfig) {
     if (config) {
@@ -91,11 +92,15 @@ export class AddressTranslator {
     this._pwCore = new PWCore(ckbUrl);
   }
 
-  public async init(pwCore?: PWCore, pwConfig?: Config, pwChainId = ChainID.ckb_testnet) {
-    const provider = await createPWCoreProvider()
-    const collector = new IndexerCollector(this._config.INDEXER_URL);
+  public clone(): AddressTranslator {
+    return new AddressTranslator(this._config)
+  }
 
+  public async init(pwCore?: PWCore, pwConfig?: Config, pwChainId = ChainID.ckb_testnet) {
+    const provider = createPWCoreProvider()
+    const collector = new IndexerCollector(this._config.INDEXER_URL)
     await this._pwCore?.init(provider, collector)
+
     if (pwCore) {
       this._pwCore = pwCore;
       PWCore.setChainId(pwChainId, pwConfig)
@@ -197,6 +202,7 @@ export class AddressTranslator {
   /** Call a CKB send transaction from L1-L2 to create an account if it not exist.
    * Require for user to have ~470 ckb on L1
    * Need to be called in web with metamask installed */
+  /** Local CKB has no default PWCore, no creation of Layer2 PW Address */
   async createLayer2Address(ethereumAddress: HexString): Promise<HexString> {
     const amount: Amount = new Amount("400", 8);
 
