@@ -1,6 +1,6 @@
 {
   "name": "nervos-godwoken-integration",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -8,14 +8,14 @@
     "lib/**/*"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "jest"
   },
   "dependencies": {
-    "@ckb-lumos/base": "0.18.0-rc1",
-    "@ckb-lumos/helpers": "0.18.0-rc1",
+    "@ckb-lumos/lumos": "0.17.0-rc7",
     "@lay2/pw-core": "0.4.0-alpha.12",
-    "@polyjuice-provider/web3": "^0.1.1",
     "@nervosnetwork/ckb-types": "0.101.0",
+    "@polyjuice-provider/web3": "0.1.3",
     "ckb-js-toolkit": "^0.10.2",
     "ethers": "^5.4.1",
     "json-rpc-2.0": "^0.2.16",
@@ -23,6 +23,10 @@
   },
   "devDependencies": {
     "@types/elliptic": "^6.4.13",
+    "@types/jest": "^27.4.0",
+    "jest": "^27.4.7",
+    "ts-jest": "^27.1.2",
+    "ts-node": "^10.4.0",
     "typescript": "^4.2.4"
   },
   "publishConfig": {

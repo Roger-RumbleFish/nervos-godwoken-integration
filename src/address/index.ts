@@ -15,11 +15,12 @@ import PWCore, {
   ChainID,
   Config
 } from "@lay2/pw-core";
-import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/base";
-import { generateAddress, parseAddress } from "@ckb-lumos/helpers";
+import { helpers, Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
+
+const { parseAddress, generateAddress } = helpers
 
 import {
   generateDeployConfig,
@@ -156,6 +157,11 @@ export class AddressTranslator {
 
   async getLayer2DepositAddress(ethAddress: string): Promise<Address> {
     const pwAddress = new Address(ethAddress, AddressType.eth);
+
+    if (!PWCore?.config) {
+      throw new Error('PWCore.config is empty. Did you call <AddressTranslator>.init() function?');
+    }
+
     const ownerLockHash = pwAddress.toLockScript().toHash();
 
     return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, pwAddress.lockArgs!);
