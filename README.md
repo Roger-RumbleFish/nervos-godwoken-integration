@@ -14,7 +14,7 @@ import { AddressTranslator } from 'nervos-godwoken-integration';
 const addressTranslator = new AddressTranslator();
 await addressTranslator.init('testnet');
 
-await translator.connectWallet();
+await addressTranslator.connectWallet();
 
 const ethereumAddress = addressTranslator.getConnectedWalletAddress();
 
