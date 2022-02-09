@@ -145,7 +145,7 @@ export class AddressTranslator {
     const lockScript = this._provider.parseToScript(address)
     const ownerLockHash = utils.computeScriptHash(lockScript);
 
-    return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, lockScript.args);
+    return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, ethAddress);
   }
 
   ethAddressToCkbAddress(
