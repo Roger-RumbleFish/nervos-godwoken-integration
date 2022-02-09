@@ -18,34 +18,38 @@ import {
   CkitInitOptions,
   helpers,
   TransferCkbBuilder,
+  RcIdentity,
+  RcIdentityFlag
 } from '@ckitjs/ckit';
 
 const { RcEthSigner } = internal;
 const { CkbAmount } = helpers;
 
-function createCkitProvider(ckbUrl = 'https://testnet.ckb.dev/rpc', ckbIndexerUrl = 'https://testnet.ckb.dev/indexer', ethereumPrivateKey?: string) {
+export interface RcSigner extends EntrySigner {
+  getRcIdentity(): RcIdentity;
+}
+
+function createCkitProvider(ckbUrl = 'https://testnet.ckb.dev/rpc', ckbIndexerUrl = 'https://testnet.ckb.dev/indexer') {
   const provider = new CkitProvider(ckbIndexerUrl, ckbUrl);
-  let wallet: AbstractWallet;
-  let signer: EntrySigner | undefined;
+  const wallet = new RcOwnerWallet(provider);
+  const signer = wallet.getSigner();
 
-  if (ethereumPrivateKey) {
-    signer = new RcEthSigner(ethereumPrivateKey, provider);
-  } else {
-    wallet = new RcOwnerWallet(provider);
-    signer = wallet.getSigner();
-  }
+  return { provider, signer, wallet };
+}
 
-  return { provider, signer };
+function isRcSigner(signer: EntrySigner): signer is RcSigner {
+  return (signer as RcSigner).getRcIdentity !== undefined;
 }
 
 export class AddressTranslator {
   private _provider: CkitProvider;
-  private _signer: EntrySigner | undefined;
+  private _signer: RcSigner | undefined;
+  private _wallet: AbstractWallet | undefined;
 
   private _config: IAddressTranslatorConfig
   private _deploymentConfig: DeploymentConfig
 
-  constructor(config?: IAddressTranslatorConfig, ethereumPrivateKey?: string) {
+  constructor(config?: IAddressTranslatorConfig) {
     if (config) {
       this._config = config;
     } else {
@@ -68,10 +72,19 @@ export class AddressTranslator {
       this._config.eth_account_lock_script_type_hash
     );
 
-    const { provider, signer } = createCkitProvider(this._config.CKB_URL, this._config.INDEXER_URL, ethereumPrivateKey);
+    const { provider, signer, wallet } = createCkitProvider(this._config.CKB_URL, this._config.INDEXER_URL);
 
     this._provider = provider;
-    this._signer = signer;
+
+    if (signer) {
+      if (!isRcSigner(signer)) {
+        throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
+      }
+
+      this._signer = signer;
+    }
+    
+    this._wallet = wallet;
   }
 
   public clone(): AddressTranslator {
@@ -186,7 +199,7 @@ export class AddressTranslator {
     const sender = await this._signer.getAddress();
     const senderBalance = CkbAmount.fromShannon(await this._provider.getCkbLiveCellsBalance(sender));
 
-    if (senderBalance < CkbAmount.fromCkb(462)) {
+    if (senderBalance.lt(CkbAmount.fromCkb(462))) {
       throw new Error(`Balance of sender (address: "${sender}") has to be minimum 462 CKB.`);
     }
 
@@ -206,6 +219,59 @@ export class AddressTranslator {
     return txHash;
   }
 
+  async connectWallet(ethereumPrivateKey?: string): Promise<void> {
+    if (ethereumPrivateKey) {
+      this._signer = new RcEthSigner(ethereumPrivateKey, this._provider);
+      return;
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      if (this._signer) {
+        return resolve();
+      }
+
+      if (!this._wallet) {
+        return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
+      }
+
+      const listener = (signer: EntrySigner) => {
+        if (!isRcSigner(signer)) {
+          throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
+        }
+
+        if (!this._wallet) {
+          return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
+        }
+
+        this._signer = signer;
+
+        const walletStatus = this._wallet.getConnectStatus();
+        if (walletStatus === 'connected') {
+          resolve();
+        } else {
+          reject(`<AddressTranslator> wallet status is: "${walletStatus}". Expected "connected".`);
+        }
+
+        (this._wallet as any).emitter.off(listener);
+        resolve();
+      }
+
+      this._wallet.on('signerChanged', listener);
+
+      this._wallet.connect();
+    });
+  }
+
+  getConnectedWalletAddress(): string | undefined {
+    const identity = this._signer?.getRcIdentity();
+
+    if (!identity || identity.flag !== RcIdentityFlag.ETH) {
+      return undefined;
+    }
+
+    return identity.pubkeyHash;
+  }
+
   getLayer2EthLockHash(
     ethAddress: string,
   ): string {
@@ -217,7 +283,7 @@ export class AddressTranslator {
 
     const layer2LockHash = utils.computeScriptHash(layer2Lock);
 
-    return layer2LockHash
+    return layer2LockHash;
   }
 
   ckbAddressToLockScriptHash(address: CkbAddress): HexString {

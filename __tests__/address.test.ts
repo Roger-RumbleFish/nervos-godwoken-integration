@@ -35,4 +35,16 @@ describe('AddressTranslator', () => {
     
         expect(omniLockLayer2DepositAddress).toBe('ckt1q3dz2p4mdrvp5ywu4kk5edl2uc4p03puvx07g7kgqdau3n3dmypkqnxzuefxyp9wdghglncj77k5wt6p59sx6kukyjlwh5s467qgp8m25yqqqqqsqqqqqvqqqqqfjqqqqqaytpzxduzxash5rhr4wvf02nxxc55rnx9cpgske3mvvxms9kduj6gqqqqpqqqqqqcqqqqqxyqqqqx7asf60w8pqpte2sfcfn90fdfzxue7ff2g8sawe9wacnqat6jmygqngqqqqpxv9ejjvgz2u63w3l839aadguh5rgtqd4devf97a0fpt4uqsz0k5qvrxtnmvnspy34lexquwhu0tfd3sy2lqq9rqgqqqqqqcqzkhwvr');
     });
+
+    test('getConnectedWalletAddress() returns correct Ethereum address when private key wallet is used', async () => {
+        const translator = new AddressTranslator();
+        await translator.init('testnet');
+
+        const ETH_ADDRESS = '0xd173313a51f8fc37bcf67569b463abd89d81844f';
+        const PRIVATE_KEY = '0xd9066ff9f753a1898709b568119055660a77d9aae4d7a4ad677b8fb3d2a571e5';
+
+        await translator.connectWallet(PRIVATE_KEY);
+
+        expect(translator.getConnectedWalletAddress()).toBe(ETH_ADDRESS);
+    });
 });
