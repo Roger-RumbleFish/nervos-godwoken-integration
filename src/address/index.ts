@@ -1,70 +1,51 @@
-import PWCore, {
-  Address,
-  AddressType,
-  Amount,
-  EthProvider,
-  IndexerCollector,
-  Provider,
-  RawProvider,
-  Script as PwScript,
-  Web3ModalProvider,
-  SUDT,
-  Builder,
-  AmountUnit,
-  SimpleSUDTBuilder,
-  ChainID,
-  Config
-} from "@lay2/pw-core";
-import { helpers, Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
+import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
-
-const { parseAddress, generateAddress } = helpers
-
 import {
   generateDeployConfig,
   generateDepositionLock,
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
-import Web3 from "web3";
+import {
+  CkitProvider,
+  predefined,
+  internal,
+  EntrySigner,
+  RcOwnerWallet,
+  AbstractWallet,
+  CkitInitOptions,
+  helpers,
+  TransferCkbBuilder,
+} from '@ckitjs/ckit';
 
-function createPWCoreProvider() {
-  let provider: Provider;
+const { RcEthSigner } = internal;
+const { CkbAmount } = helpers;
 
-  const web3 = new Web3(Web3.givenProvider)
-  if (isAnyAccountConnected(web3)) {
-    provider = new Web3ModalProvider(web3);
-  } else if (typeof (window) !== 'undefined' && Boolean((window as any).web3)) {
-    provider = new EthProvider();
+function createCkitProvider(ckbUrl = 'https://testnet.ckb.dev/rpc', ckbIndexerUrl = 'https://testnet.ckb.dev/indexer', ethereumPrivateKey?: string) {
+  const provider = new CkitProvider(ckbIndexerUrl, ckbUrl);
+  let wallet: AbstractWallet;
+  let signer: EntrySigner | undefined;
+
+  if (ethereumPrivateKey) {
+    signer = new RcEthSigner(ethereumPrivateKey, provider);
   } else {
-    provider = new RawProvider(
-      "0x23211b1f333aece687eebc5b90be6b55962f5bf0433edd23e1c73d93a67f70e5"
-    );
+    wallet = new RcOwnerWallet(provider);
+    signer = wallet.getSigner();
   }
 
-  return provider
-}
-
-function isAnyAccountConnected(web3: any) {
-  let accounts;
-  try {
-    accounts = web3?.eth?.accounts
-  } catch(error) {
-    console.error(error)
-  }
-
-  return Boolean(accounts?.[0]);
+  return { provider, signer };
 }
 
 export class AddressTranslator {
-  private _pwCore: PWCore
+  private _provider: CkitProvider;
+  private _signer: EntrySigner | undefined;
 
   private _config: IAddressTranslatorConfig
   private _deploymentConfig: DeploymentConfig
 
-  constructor(config?: IAddressTranslatorConfig) {
+  constructor(config?: IAddressTranslatorConfig, ethereumPrivateKey?: string) {
     if (config) {
       this._config = config;
     } else {
@@ -78,7 +59,7 @@ export class AddressTranslator {
           defaultConfig.eth_account_lock.script_type_hash,
         rollup_type_script: defaultConfig.chain.rollup_type_script,
         rollup_type_hash: defaultConfig.rollup_script_hash,
-        portal_wallet_lock_hash: defaultConfig.portal_wallet_lock_hash,
+        rc_lock_script_type_hash: defaultConfig.rc_lock_script_type_hash,
       };
     }
 
@@ -87,23 +68,25 @@ export class AddressTranslator {
       this._config.eth_account_lock_script_type_hash
     );
 
-    const ckbUrl = this._config.CKB_URL
+    const { provider, signer } = createCkitProvider(this._config.CKB_URL, this._config.INDEXER_URL, ethereumPrivateKey);
 
-    this._pwCore = new PWCore(ckbUrl);
+    this._provider = provider;
+    this._signer = signer;
   }
 
   public clone(): AddressTranslator {
     return new AddressTranslator(this._config)
   }
 
-  public async init(pwCore?: PWCore, pwConfig?: Config, pwChainId = ChainID.ckb_testnet) {
-    const provider = createPWCoreProvider()
-    const collector = new IndexerCollector(this._config.INDEXER_URL)
-    await this._pwCore?.init(provider, collector)
-
-    if (pwCore) {
-      this._pwCore = pwCore;
-      PWCore.setChainId(pwChainId, pwConfig)
+  public async init(chain: 'testnet' | 'mainnet' | CkitInitOptions) {
+    if (typeof chain === 'string') {
+      if (chain === 'mainnet') {
+        await this._provider.init(predefined.Lina);
+      } else {
+        await this._provider.init(predefined.Aggron);
+      }
+    } else {
+      await this._provider.init(chain);
     }
   }
 
@@ -129,7 +112,7 @@ export class AddressTranslator {
     return depositionLockArgs;
   }
 
-  async getLayer2DepositAddressByOwnerLock(ownerLockHashLayerOne: string, ethLockArgsLayerTwo: string) {
+  getLayer2DepositAddressByOwnerLock(ownerLockHashLayerOne: string, ethLockArgsLayerTwo: string): string {
     const depositionLockArgs: DepositionLockArgs = this.getDepositionLockArgs(
       ownerLockHashLayerOne,
       ethLockArgsLayerTwo
@@ -144,47 +127,38 @@ export class AddressTranslator {
       serializedArgs
     );
 
-    const script = PwScript.fromRPC(depositionLock) as unknown as PwScript;
-
-    const depositAddr = Address.fromLockScript(script);
-
-    return depositAddr;
+    return this._provider.parseToAddress(depositionLock);
   }
 
   async getDefaultLockLayer2DepositAddress(ckbAddress: string, ethAddress: string) {
     return this.getLayer2DepositAddressByOwnerLock(this.ckbAddressToLockScriptHash(ckbAddress), ethAddress);
   }
 
-  async getLayer2DepositAddress(ethAddress: string): Promise<Address> {
-    const pwAddress = new Address(ethAddress, AddressType.eth);
-
-    if (!PWCore?.config) {
-      throw new Error('PWCore.config is empty. Did you call <AddressTranslator>.init() function?');
+  async getLayer2DepositAddress(ethAddress: string): Promise<string> {
+    try {
+      this._provider.config;
+    } catch (error) {
+      throw new Error('<AddressTranslator>._provider.config is empty. Did you call <AddressTranslator>.init() function?');
     }
 
-    const ownerLockHash = pwAddress.toLockScript().toHash();
+    const address = this.ethAddressToCkbAddress(ethAddress);
+    const lockScript = this._provider.parseToScript(address)
+    const ownerLockHash = utils.computeScriptHash(lockScript);
 
-    return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, pwAddress.lockArgs!);
+    return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, lockScript.args);
   }
 
   ethAddressToCkbAddress(
     ethAddress: HexString,
   ): HexString {
-    const script = {
-      code_hash: this._config.portal_wallet_lock_hash,
-      hash_type: "type",
-      args: ethAddress,
-    };
-    const { predefined } = require("@ckb-lumos/config-manager");
+    // omni flag       pubkey hash   omni lock flags
+    // chain identity   eth addr      function flag()
+    // 00: Nervos       👇            00: owner
+    // 01: Ethereum     👇            01: administrator
+    //      👇          👇            👇
+    // args: `0x01${ethAddr.substring(2)}00`,
+    const address = this._provider.parseToAddress(this._provider.newScript('RC_LOCK', `0x01${ethAddress.substring(2)}00`));
 
-    const address = generateAddress(
-      script as Script,
-      PWCore.chainId === ChainID.ckb_testnet
-        ? {
-          config: predefined.AGGRON4,
-        }
-        : undefined
-    );
     return address;
   }
 
@@ -203,16 +177,33 @@ export class AddressTranslator {
    * Require for user to have ~470 ckb on L1
    * Need to be called in web with metamask installed */
   /** Local CKB has no default PWCore, no creation of Layer2 PW Address */
-  async createLayer2Address(ethereumAddress: HexString): Promise<HexString> {
-    const amount: Amount = new Amount("400", 8);
+  async createLayer2Address(ethereumAddress: HexString): Promise<string> {
+    if (!this._signer) {
+      throw new Error('<AddressTranslator>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
+    }
+
+    const amount = CkbAmount.fromCkb(400);
+    const sender = await this._signer.getAddress();
+    const senderBalance = CkbAmount.fromShannon(await this._provider.getCkbLiveCellsBalance(sender));
+
+    if (senderBalance < CkbAmount.fromCkb(462)) {
+      throw new Error(`Balance of sender (address: "${sender}") has to be minimum 462 CKB.`);
+    }
 
     const l2Address = await this.getLayer2DepositAddress(
       ethereumAddress
     );
 
-    const tx = await this._pwCore.send(l2Address, amount);
+    const txBuilder = new TransferCkbBuilder(
+      { recipients: [{ recipient: l2Address, amount: amount.toString(), capacityPolicy: 'createCell' }] },
+      this._provider,
+      sender,
+    );
 
-    return tx;
+    const tx = await txBuilder.build();
+    const txHash = await this._provider.sendTransaction(await this._signer.seal(tx));
+      
+    return txHash;
   }
 
   getLayer2EthLockHash(
@@ -230,39 +221,8 @@ export class AddressTranslator {
   }
 
   ckbAddressToLockScriptHash(address: CkbAddress): HexString {
-    const lock = parseAddress(address);
+    const lock = this._provider.parseToScript(address);
     const accountLockScriptHash = utils.computeScriptHash(lock);
     return accountLockScriptHash;
-  }
-
-  // TODO: Should be moved to bridge layer
-  async calculateLayer1ToLayer2Fee(
-    ethereumAddress: string,
-    tokenAddress: string,
-    amount: string
-  ): Promise<SimpleSUDTBuilder> {
-    const MINIMUM_CKB_CELL_OUTPUT = new Amount("400", AmountUnit.ckb);
-    const SUDT_AMOUNT_TO_SEND = new Amount(amount, AmountUnit.ckb);
-
-    const options = {
-      witnessArgs: Builder.WITNESS_ARGS.RawSecp256k1,
-      autoCalculateCapacity: true,
-      minimumOutputCellCapacity: MINIMUM_CKB_CELL_OUTPUT,
-    };
-
-    const layer2DepositAddress = await this.getLayer2DepositAddress(
-      ethereumAddress
-    );
-
-    const sudt = new SUDT(tokenAddress);
-
-    const builder = new SimpleSUDTBuilder(
-      sudt,
-      layer2DepositAddress,
-      SUDT_AMOUNT_TO_SEND,
-      options
-    );
-
-    return builder;
   }
 }
