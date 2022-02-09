@@ -18,5 +18,5 @@ export interface IAddressTranslatorConfig {
     args: string;
   };
   rollup_type_hash: string;
-  portal_wallet_lock_hash: string;
+  rc_lock_script_type_hash: string;
 }
