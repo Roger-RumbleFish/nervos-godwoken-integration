@@ -9,51 +9,24 @@ import {
   serializeArgs,
 } from "./helpers";
 import {
-  CkitProvider,
-  predefined,
-  internal,
-  EntrySigner,
-  RcOwnerWallet,
-  AbstractWallet,
-  CkitInitOptions,
   helpers,
   TransferCkbBuilder,
-  RcIdentity,
-  RcIdentityFlag
 } from '@ckitjs/ckit';
+import { WalletBase } from "../wallet-base";
 
-const { RcEthSigner } = internal;
 const { CkbAmount } = helpers;
+export class AddressTranslator extends WalletBase {
+  public _config: IAddressTranslatorConfig
 
-export interface RcSigner extends EntrySigner {
-  getRcIdentity(): RcIdentity;
-}
-
-function createCkitProvider(ckbUrl = 'https://testnet.ckb.dev/rpc', ckbIndexerUrl = 'https://testnet.ckb.dev/indexer') {
-  const provider = new CkitProvider(ckbIndexerUrl, ckbUrl);
-  const wallet = new RcOwnerWallet(provider);
-  const signer = wallet.getSigner();
-
-  return { provider, signer, wallet };
-}
-
-function isRcSigner(signer: EntrySigner): signer is RcSigner {
-  return (signer as RcSigner).getRcIdentity !== undefined;
-}
-
-export class AddressTranslator {
-  private _provider: CkitProvider;
-  private _signer: RcSigner | undefined;
-  private _wallet: AbstractWallet | undefined;
-
-  private _config: IAddressTranslatorConfig
   private _deploymentConfig: DeploymentConfig
 
   constructor(config?: IAddressTranslatorConfig) {
+    let configToSet;
+
     if (config) {
-      this._config = config;
+      configToSet = config;
     } else {
-      this._config = {
+      configToSet = {
         CKB_URL: defaultConfig.ckb_url,
         RPC_URL: defaultConfig.rpc_url,
         INDEXER_URL: defaultConfig.indexer_url,
@@ -67,40 +40,18 @@ export class AddressTranslator {
       };
     }
 
+    super(configToSet.CKB_URL, configToSet.INDEXER_URL);
+
+    this._config = configToSet;
+
     this._deploymentConfig = generateDeployConfig(
       this._config.deposit_lock_script_type_hash,
       this._config.eth_account_lock_script_type_hash
-    );
-
-    const { provider, signer, wallet } = createCkitProvider(this._config.CKB_URL, this._config.INDEXER_URL);
-
-    this._provider = provider;
-
-    if (signer) {
-      if (!isRcSigner(signer)) {
-        throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
-      }
-
-      this._signer = signer;
-    }
-    
-    this._wallet = wallet;
+    );    
   }
 
   public clone(): AddressTranslator {
     return new AddressTranslator(this._config)
-  }
-
-  public async init(chain: 'testnet' | 'mainnet' | CkitInitOptions) {
-    if (typeof chain === 'string') {
-      if (chain === 'mainnet') {
-        await this._provider.init(predefined.Lina);
-      } else {
-        await this._provider.init(predefined.Aggron);
-      }
-    } else {
-      await this._provider.init(chain);
-    }
   }
 
   private getDepositionLockArgs(
@@ -155,7 +106,7 @@ export class AddressTranslator {
     }
 
     const address = this.ethAddressToCkbAddress(ethAddress);
-    const lockScript = this._provider.parseToScript(address)
+    const lockScript = this._provider.parseToScript(address);
     const ownerLockHash = utils.computeScriptHash(lockScript);
 
     return this.getLayer2DepositAddressByOwnerLock(ownerLockHash, ethAddress);
@@ -217,59 +168,6 @@ export class AddressTranslator {
     const txHash = await this._provider.sendTransaction(await this._signer.seal(tx));
       
     return txHash;
-  }
-
-  async connectWallet(ethereumPrivateKey?: string): Promise<void> {
-    if (ethereumPrivateKey) {
-      this._signer = new RcEthSigner(ethereumPrivateKey, this._provider);
-      return;
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      if (this._signer) {
-        return resolve();
-      }
-
-      if (!this._wallet) {
-        return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
-      }
-
-      const listener = (signer: EntrySigner) => {
-        if (!isRcSigner(signer)) {
-          throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
-        }
-
-        if (!this._wallet) {
-          return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
-        }
-
-        this._signer = signer;
-
-        const walletStatus = this._wallet.getConnectStatus();
-        if (walletStatus === 'connected') {
-          resolve();
-        } else {
-          reject(`<AddressTranslator> wallet status is: "${walletStatus}". Expected "connected".`);
-        }
-
-        (this._wallet as any).emitter.off(listener);
-        resolve();
-      }
-
-      this._wallet.on('signerChanged', listener);
-
-      this._wallet.connect();
-    });
-  }
-
-  getConnectedWalletAddress(): string | undefined {
-    const identity = this._signer?.getRcIdentity();
-
-    if (!identity || identity.flag !== RcIdentityFlag.ETH) {
-      return undefined;
-    }
-
-    return identity.pubkeyHash;
   }
 
   getLayer2EthLockHash(
