@@ -90,16 +90,16 @@ export class GodwokenWithdraw extends WalletBase {
     );
   }
 
-  async withdraw(fromEthereumAddress: string, amount: string, godwokenRpcUrl: string): Promise<string | undefined> {
+  async withdraw(fromEthereumAddress: string, amountInCkb: string, godwokenRpcUrl: string): Promise<string | undefined> {
     const { rollupTypeHash, ethAccountLockScriptTypeHash, creatorAccountId, polyjuiceValidatorScriptCodeHash } = this.config;
 
     const minimum = CkbAmount.fromShannon(
       minimalWithdrawalCapacity(false),
     );
-    const desiredAmount = CkbAmount.fromCkb(amount);
+    const desiredAmount = CkbAmount.fromCkb(amountInCkb);
 
     if (desiredAmount.lt(minimum)) {
-      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} CKB.`);
+      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} Shannon.`);
     }
 
     const godwoker = new Godwoker(godwokenRpcUrl);
@@ -109,9 +109,7 @@ export class GodwokenWithdraw extends WalletBase {
       fromEthereumAddress
     );
 
-    const capacity =
-      "0x" +
-      (BigInt(400) * BigInt(Math.pow(10, 8))).toString(16).padStart(16, "0");
+    const capacity = "0x" + desiredAmount.toHex().slice(2).padStart(16, "0");
     const address = this.addressTranslator.ethAddressToCkbAddress(fromEthereumAddress);
     const lockScript = this._provider.parseToScript(address);
     const ownerLockHash = utils.computeScriptHash(lockScript);
@@ -230,7 +228,7 @@ export class GodwokenWithdraw extends WalletBase {
         index: this._provider.config.SCRIPTS.RC_LOCK.INDEX,
       }
     );
-    
+
     const tx = await builder.build();
     tx.validate();
     const signedTx = await this._signer.seal(tx);

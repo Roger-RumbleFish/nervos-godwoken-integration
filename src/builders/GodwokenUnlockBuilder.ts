@@ -1,7 +1,8 @@
 import { Amount, AmountUnit, Builder, Cell, CellDep, DepType, normalizers, OutPoint, RawTransaction, Reader, Script, SerializeWitnessArgs, Transaction, WitnessArgs } from "@lay2/pw-core";
 import { SerializeUnlockWithdrawalViaFinalize } from "@polyjuice-provider/godwoken/schemas";
-import { AbstractTransactionBuilder, CkitProvider } from '@ckitjs/ckit';
+import { CkitProvider } from '@ckitjs/ckit';
 import { WithdrawalRequest } from "../bridge/utils/withdrawal";
+import { AbstractPwSenderBuilder } from "@ckitjs/ckit/dist/tx-builders/pw/AbstractPwSenderBuilder";
 
 function normalizeObject(debugPath: string, obj: any, keys: object) {
     const result: any = {};
@@ -29,13 +30,12 @@ export interface GwUnlockBuilderCellDep {
     depType: 'code' | 'dep_group';
 }
 
-export default class GodwokenUnlockBuilder extends AbstractTransactionBuilder {
+export default class GodwokenUnlockBuilder extends AbstractPwSenderBuilder {
     public fee = new Amount('0', AmountUnit.shannon);
     public withdrawalLockCellDep: CellDep;
     public rollupCellDep: CellDep;
     public defaultLockCellDep: CellDep;
     public omniLockCellDep: CellDep;
-    public portalWalletWitnessArgs: WitnessArgs;
 
     constructor(
         public ownerLockScriptAddress: string,
@@ -47,11 +47,7 @@ export default class GodwokenUnlockBuilder extends AbstractTransactionBuilder {
         _defaultLockCellDep: GwUnlockBuilderCellDep,
         _omniLockCellDep: GwUnlockBuilderCellDep,
     ) {
-        super();
-
-        this.portalWalletWitnessArgs = this.provider.config.PREFIX === 'ckb'
-            ? Builder.WITNESS_ARGS.RawSecp256k1
-            : Builder.WITNESS_ARGS.Secp256k1
+        super(provider);
 
         this.withdrawalLockCellDep = new CellDep(
             _withdrawalLockCellDep.depType as DepType,
@@ -175,7 +171,12 @@ export default class GodwokenUnlockBuilder extends AbstractTransactionBuilder {
         // Generate a transaction and calculate the fee. (The second argument for witness args is needed for more accurate fee calculation.)
         const withdrawalWitnessArgsSerialized = this.getWithdrawalWitnessArgs();
 
-        const tx = new Transaction(new RawTransaction(inputCells, outputCells, cellDeps), [withdrawalWitnessArgsSerialized, this.portalWalletWitnessArgs]);
+        const tx = new Transaction(new RawTransaction(inputCells, outputCells, cellDeps),
+            [
+                withdrawalWitnessArgsSerialized,
+                this.getWitnessPlaceholder(this.ownerLockScriptAddress)
+            ]
+        );
         this.fee = Builder.calcFee(tx);
 
         // Throw error if the fee is too low.
