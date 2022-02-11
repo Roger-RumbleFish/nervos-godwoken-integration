@@ -12,6 +12,7 @@ import {
   WithdrawalRequest,
 } from "./utils/withdrawal";
 import { core } from "@polyjuice-provider/godwoken";
+import GodwokenUnlockBuilder, { GwUnlockBuilderCellDep } from "../builders/GodwokenUnlockBuilder";
 
 const { CkbAmount } = helpers;
 
@@ -22,9 +23,10 @@ export interface GodwokenWithdrawConfig {
   creatorAccountId: string;
   polyjuiceValidatorScriptCodeHash: string;
   withdrawalLockScript: Script;
+  withdrawalLockCellDep: GwUnlockBuilderCellDep;
 }
 
-export type { WithdrawalRequest, Script };
+export type { GwUnlockBuilderCellDep, WithdrawalRequest, Script };
 
 export class GodwokenWithdraw extends WalletBase {
   constructor(public config: GodwokenWithdrawConfig, public addressTranslator: AddressTranslator) {
@@ -75,7 +77,7 @@ export class GodwokenWithdraw extends WalletBase {
       const withdrawalBlockNumber = withdrawal_lock_args
         .getWithdrawalBlockNumber()
         .toLittleEndianBigUint64();
-   
+
       withdrawalCells.push({
         cell,
         withdrawalBlockNumber,
@@ -160,33 +162,81 @@ export class GodwokenWithdraw extends WalletBase {
 
   async getRollupCellWithState() {
     // * search rollup cell then get last_finalized_block_number from cell data (GlobalState)
-  const rollupCells = await this._provider.collectCells({
-    searchKey: {
-      script: this.config.rollupTypeScript,
-      script_type: 'type',
-    }
-  }, () => true);
+    const rollupCells = await this._provider.collectCells({
+      searchKey: {
+        script: this.config.rollupTypeScript,
+        script_type: 'type',
+      }
+    }, () => true);
 
-  let rollupCell: Cell | undefined = undefined;
-  for await (const cell of rollupCells) {
-    const lock = cell.cell_output.lock;
-    if (!lock || !cell.out_point) {
-      throw new Error("Rollup cell has no lock script or out point.");
+    let rollupCell: Cell | undefined = undefined;
+    for await (const cell of rollupCells) {
+      const lock = cell.cell_output.lock;
+      if (!lock || !cell.out_point) {
+        throw new Error("Rollup cell has no lock script or out point.");
+      }
+
+      rollupCell = cell;
+      break;
     }
 
-    rollupCell = cell;
-    break;
+    if (rollupCell === null || typeof rollupCell === "undefined") {
+      throw new Error("Rollup cell not found.");
+    }
+
+    const globalState = new core.GlobalState(new Reader(rollupCell.data));
+    const lastFinalizedBlockNumber = globalState
+      .getLastFinalizedBlockNumber()
+      .toLittleEndianBigUint64();
+
+    return { rollupCell, lastFinalizedBlockNumber };
   }
 
-  if (rollupCell === null || typeof rollupCell === "undefined") {
-    throw new Error("Rollup cell not found.");
-  }
+  async unlock(
+    request: WithdrawalRequest,
+    ownerEthereumAddress: string
+  ): Promise<string> {
+    const { rollupCell } = await this.getRollupCellWithState();
 
-  const globalState = new core.GlobalState(new Reader(rollupCell.data));
-  const lastFinalizedBlockNumber = globalState
-    .getLastFinalizedBlockNumber()
-    .toLittleEndianBigUint64();
+    if (!rollupCell?.out_point) {
+      throw new Error("Rollup cell missing.");
+    }
 
-  return { rollupCell, lastFinalizedBlockNumber };
+    if (!this._signer) {
+      throw new Error('Signer is undefined. Make sure to .connectWallet()');
+    }
+
+    const ckbAddressAsString = this.addressTranslator.ethAddressToCkbAddress(ownerEthereumAddress);
+
+    const builder = new GodwokenUnlockBuilder(
+      ckbAddressAsString,
+      request,
+      this._provider,
+      '10000',
+      this.config.withdrawalLockCellDep,
+      {
+        depType: 'code',
+        tx_hash: rollupCell.out_point.tx_hash,
+        index: rollupCell.out_point.index
+      },
+      {
+        depType: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.DEP_TYPE,
+        tx_hash: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.TX_HASH,
+        index: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.INDEX,
+      },
+      {
+        depType: this._provider.config.SCRIPTS.RC_LOCK.DEP_TYPE,
+        tx_hash: this._provider.config.SCRIPTS.RC_LOCK.TX_HASH,
+        index: this._provider.config.SCRIPTS.RC_LOCK.INDEX,
+      }
+    );
+    
+    const tx = await builder.build();
+    tx.validate();
+    const signedTx = await this._signer.seal(tx);
+    signedTx.witnesses[0] = builder.getWithdrawalWitnessArgs();
+    const txHash = await this._provider.sendTransaction(signedTx);
+
+    return txHash;
   }
 }

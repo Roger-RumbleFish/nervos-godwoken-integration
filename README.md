@@ -41,3 +41,29 @@ const ethereumAddress = addressTranslator.getConnectedWalletAddress();
 
 const layer1TxHash = await addressTranslator.createLayer2Address(ethereumAddress);
 ```
+
+## Withdraw
+
+```
+const godwokenWithdraw = new GodwokenWithdraw(CONFIG, addressTranslator);
+await godwokenWithdraw.init('testnet');
+
+await godwokenWithdraw.connectWallet();
+
+await godwokenWithdraw.withdraw(ethAddress, amount, config.godwoken.rpcUrl);
+```
+
+## Unlock
+
+```
+const godwokenWithdraw = new GodwokenWithdraw(CONFIG, addressTranslator);
+await godwokenWithdraw.init('testnet');
+
+const withdrawRequests = await godwokenWithdraw.fetchWithdrawalRequests(ethAddress);
+
+await godwokenWithdraw.connectWallet();
+
+const txId = await godwokenWithdraw.unlock(withdrawRequests[0], ethAddress);
+
+toast.success(`Transaction submitted: ${txId} (Layer 1 transaction)`);
+```
