@@ -103,7 +103,7 @@ export class AddressTranslator {
   }: {
     pwCore?: PWCore,
     pwConfig?: Config,
-    pwChainId: ChainID,
+    pwChainId?: ChainID,
   }) {
     const provider = createPWCoreProvider()
     const collector = new IndexerCollector(this._config.INDEXER_URL)
