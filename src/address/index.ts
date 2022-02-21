@@ -105,7 +105,6 @@ export class AddressTranslator {
     pwConfig?: Config,
     pwChainId: ChainID,
   }) {
-    console.log('pw chain id', pwChainId)
     const provider = createPWCoreProvider()
     const collector = new IndexerCollector(this._config.INDEXER_URL)
     await this._pwCore?.init(provider, collector)
@@ -186,8 +185,6 @@ export class AddressTranslator {
     };
     const { predefined } = require("@ckb-lumos/config-manager");
 
-    console.log('PwCore.chainId', PWCore.chainId)
-    
     const address = generateAddress(
       script as Script,
       PWCore.chainId === ChainID.ckb_testnet
