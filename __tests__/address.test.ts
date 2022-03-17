@@ -29,11 +29,11 @@ describe('AddressTranslator', () => {
         const translator = new AddressTranslator();
         await translator.init('testnet');
 
-        const ethAddress = '0x018332E7b64E01246BfC981C75f8f5A5B18115F0';
+        const ethAddress = '0xD173313A51f8fc37BcF67569b463abd89d81844f';
 
         const omniLockLayer2DepositAddress = await translator.getLayer2DepositAddress(ethAddress);
     
-        expect(omniLockLayer2DepositAddress).toBe('ckt1q3dz2p4mdrvp5ywu4kk5edl2uc4p03puvx07g7kgqdau3n3dmypkqnxzuefxyp9wdghglncj77k5wt6p59sx6kukyjlwh5s467qgp8m25yqqqqqsqqqqqvqqqqqfjqqqqqaytpzxduzxash5rhr4wvf02nxxc55rnx9cpgske3mvvxms9kduj6gqqqqpqqqqqqcqqqqqxyqqqqx7asf60w8pqpte2sfcfn90fdfzxue7ff2g8sawe9wacnqat6jmygqngqqqqpxv9ejjvgz2u63w3l839aadguh5rgtqd4devf97a0fpt4uqsz0k5qvrxtnmvnspy34lexquwhu0tfd3sy2lqq9rqgqqqqqqcqzkhwvr');
+        expect(omniLockLayer2DepositAddress).toBe('ckt1qnxzkns56l07k8nj7acg4skh7cm2ug3tqqa6c67vlnu0fhltm8r3gj2qy3h3dr6pqepfm3jp4hfnsxjykhh0v8nh2s2z7k2wnpn8rft45yqqqqqsqqqqqvqqqqqfjqqqqzu3u2hxanhpdr2vkcjlcxts3k87emrdxfwyndy9m9aadz7wjz57y6gqqqqpqqqqqqcqqqqqxyqqqqqs2u0ezpelms7daaxa4kttggzd6vxkx40nmk56d4lup7sryeqgmgqngqqqqpy5qfr0z685zpjznhryrtwn8qdyfd0w7c08w4q59av5axrxwxjht5tnxya9r78ux770vatfk336hkyasxzy7q9rqgqqqqqqcqeeaud2');
     });
 
     test('getConnectedWalletAddress() returns correct Ethereum address when private key wallet is used', async () => {
