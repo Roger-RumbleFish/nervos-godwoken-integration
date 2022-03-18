@@ -41,17 +41,19 @@ const layer1TxHash = await addressTranslator.createLayer2Address(ethereumAddress
 ## Withdraw
 
 ```
+const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';
 const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
 await godwokenWithdraw.init('testnet');
 
 await godwokenWithdraw.connectWallet();
 
-await godwokenWithdraw.withdraw(ethAddress, amount, config.godwoken.rpcUrl);
+await godwokenWithdraw.withdraw(ethAddress, amount);
 ```
 
 ## Unlock
 
 ```
+const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';
 const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
 await godwokenWithdraw.init('testnet');
 

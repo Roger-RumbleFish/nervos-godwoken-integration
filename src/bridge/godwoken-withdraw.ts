@@ -97,7 +97,7 @@ export class GodwokenWithdraw extends WalletBase {
     return (godwokenWeb3 as any).rpcCall("get_withdrawal", id);
   }
 
-  async withdraw(fromEthereumAddress: string, amountInCkb: string, godwokenRpcUrl: string): Promise<string | undefined> {
+  async withdraw(fromEthereumAddress: string, amountInCkb: string): Promise<string | undefined> {
     const minimum = CkbAmount.fromShannon(
       minimalWithdrawalCapacity(false),
     );
@@ -107,7 +107,7 @@ export class GodwokenWithdraw extends WalletBase {
       throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} Shannon.`);
     }
 
-    const godwokenWeb3 = new Godwoken(godwokenRpcUrl);
+    const godwokenWeb3 = new Godwoken(this.godwokenRpcUrl);
 
     const layer2AccountScriptHash = this.addressTranslator.getLayer2EthLockHash(fromEthereumAddress);
     const fromId = await godwokenWeb3.getAccountIdByScriptHash(layer2AccountScriptHash);
