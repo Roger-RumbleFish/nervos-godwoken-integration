@@ -2,10 +2,6 @@
 
 https://www.npmjs.com/package/nervos-godwoken-integration
 
-## Compatibility
-
-Versions `>= 0.2` of this library use Omnilock for Layer 1 account security. If you're looking for Portal Wallet compatible versions check `0.1.x`.
-
 ## Create Layer 2 account using MetaMask
 
 ```
@@ -45,7 +41,7 @@ const layer1TxHash = await addressTranslator.createLayer2Address(ethereumAddress
 ## Withdraw
 
 ```
-const godwokenWithdraw = new GodwokenWithdraw(CONFIG, addressTranslator);
+const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
 await godwokenWithdraw.init('testnet');
 
 await godwokenWithdraw.connectWallet();
@@ -56,7 +52,7 @@ await godwokenWithdraw.withdraw(ethAddress, amount, config.godwoken.rpcUrl);
 ## Unlock
 
 ```
-const godwokenWithdraw = new GodwokenWithdraw(CONFIG, addressTranslator);
+const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
 await godwokenWithdraw.init('testnet');
 
 const withdrawRequests = await godwokenWithdraw.fetchWithdrawalRequests(ethAddress);
