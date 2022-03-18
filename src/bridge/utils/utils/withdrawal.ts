@@ -1,13 +1,9 @@
 import { Cell, Hash, HexNumber, HexString, Script } from "@ckb-lumos/base";
 import { minimalCellCapacity } from "@ckb-lumos/helpers";
-import {
-  WithdrawalLockArgs,
-  normalizers,
-} from "../base";
 import { Reader } from "ckb-js-toolkit";
-import { SerializeWithdrawalLockArgs } from "@polyjuice-provider/godwoken/schemas";
-
-const { NormalizeWithdrawalLockArgs } = normalizers;
+import { WithdrawalLockArgs } from "../godwoken";
+import { NormalizeWithdrawalLockArgs } from "../godwoken/normalizer";
+import { SerializeWithdrawalLockArgs } from "../godwoken/schema_v1";
 
 export function minimalWithdrawalCapacity(isSudt: boolean): HexNumber {
   // fixed size, the specific value is not important.

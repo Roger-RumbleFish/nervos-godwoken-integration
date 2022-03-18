@@ -1,17 +1,10 @@
-import { Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/base";
-import {
-  RawL2Transaction,
-  normalizers,
-  RawWithdrawalRequest,
-  WithdrawalRequest,
-  Fee,
-} from "../base";
+import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
+
 import { Reader } from "ckb-js-toolkit";
 import keccak256 from "keccak256";
-import { withdrawal } from "../utils";
 import { normalizer } from "@polyjuice-provider/godwoken";
-import { Godwoker, serializeRawL2Transaction } from "@polyjuice-provider/base";
-import { SerializeRawWithdrawalRequest } from "@polyjuice-provider/godwoken/schemas";
+import { serializeRawL2Transaction } from "@polyjuice-provider/base";
+import { RawL2Transaction, RawWithdrawalRequestV1 } from "../godwoken";
 
 const { NormalizeRawL2Transaction } = normalizer;
 
@@ -37,116 +30,60 @@ export function generateTransactionMessage(
   return `0x${keccak256(buf).toString("hex")}`;
 }
 
-export async function signMessageEthereum(message: Hash, address: string): Promise<HexString> {
-  const result = await (window.ethereum as any).request({ method: 'eth_sign',
-    params: [address, message]
-  })
-
-  let v = Number.parseInt(result.slice(-2), 16);
-  
-  if (v >= 27)
-    v -= 27;
-
-  return `0x${result.slice(2, -2)}${v.toString(16).padStart(2, '0')}`;
-}
-
-export async function generateWithdrawalRequest(
-  godwokenClient: Godwoker,
-  ethereumAddress: string,
-  {
-    fromId,
-    capacity,
-    amount,
-    ownerLockHash,
-    fee,
-    sellCapacity = "0x0",
-    sellAmount = "0x0",
-    paymentLockHash = "0x" + "00".repeat(32),
-    sudtScriptHash = "0x" + "00".repeat(32),
-  }: {
-    fromId: HexNumber;
-    capacity: HexNumber;
-    amount: HexNumber;
-    ownerLockHash: Hash;
-    fee: Fee;
-    sellCapacity?: HexNumber;
-    sellAmount?: HexNumber;
-    paymentLockHash?: Hash;
-    sudtScriptHash?: Hash;
-  },
-  {
-    config = {},
-  }: {
-    config?: any;
-  } = {}
-) {
-  const ckbSudtScriptHash =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
-
-  if (config == null) {
-    config = {};
-  }
-
-  const isSudt = sudtScriptHash !== ckbSudtScriptHash;
-  let minCapacity = withdrawal.minimalWithdrawalCapacity(isSudt);
-  if (BigInt(capacity) < BigInt(minCapacity)) {
-    throw new Error(
-      `Withdrawal required ${BigInt(
-        minCapacity
-      )} shannons at least, provided ${BigInt(capacity)}.`
-    );
-  }
-
-  const script: Script = {
-    code_hash: config.polyjuice.ethAccountLockCodeHash,
-    hash_type: "type",
-    args: config.rollupTypeHash + ethereumAddress.slice(2),
-  };
-  const accountScriptHash = utils.computeScriptHash(script);
-
-  const nonce: HexNumber = await godwokenClient.getNonce(Number(fromId));
-
-  const rawWithdrawalRequest: RawWithdrawalRequest = {
-    nonce,
-    capacity,
-    amount,
-    sudt_script_hash: sudtScriptHash,
-    account_script_hash: accountScriptHash,
-    sell_amount: sellAmount,
-    sell_capacity: sellCapacity,
-    owner_lock_hash: ownerLockHash,
-    payment_lock_hash: paymentLockHash,
-    fee,
-  };
-
-  const message = generateWithdrawalMessage(
-    rawWithdrawalRequest,
-    config.rollupTypeHash
-  );
-
-  const signature: HexString = await signMessageEthereum(message, ethereumAddress);
-
-  const withdrawalRequest: WithdrawalRequest = {
-    raw: rawWithdrawalRequest,
-    signature: signature,
-  };
-
-  return withdrawalRequest;
-}
-
 export function generateWithdrawalMessage(
-  raw_request: RawWithdrawalRequest,
-  rollupTypeHash: Hash
-): HexString {
-  const raw_request_data = new Reader(
-    SerializeRawWithdrawalRequest(
-      normalizers.NormalizeRawWithdrawalRequest(raw_request)
-    )
-  ).serializeJson();
-  const hexData = rollupTypeHash + raw_request_data.slice(2);
-  const message = new utils.CKBHasher().update(hexData).digestHex();
+  rawRequest: RawWithdrawalRequestV1,
+  ownerLockScript: Script
+) {
+  const typedMsg = {
+    domain: {
+      name: "Godwoken",
+      version: "1",
+      chainId: Number(rawRequest.chain_id),
+    },
+    message: {
+      accountScriptHash: rawRequest.account_script_hash,
+      nonce: Number(rawRequest.nonce),
+      chainId: Number(rawRequest.chain_id),
+      fee: Number(rawRequest.fee),
+      layer1OwnerLock: {
+        codeHash: ownerLockScript.code_hash,
+        hashType: ownerLockScript.hash_type,
+        args: ownerLockScript.args,
+      },
+      withdraw: {
+        ckbCapacity: Number(rawRequest.capacity),
+        UDTAmount: Number(rawRequest.amount),
+        UDTScriptHash: rawRequest.sudt_script_hash,
+      }
+    },
+    primaryType: "Withdrawal" as const,
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+      ],
+      Withdrawal: [
+        { name: "accountScriptHash", type: "bytes32" },
+        { name: "nonce", type: "uint256" },
+        { name: "chainId", type: "uint256" },
+        { name: "fee", type: "uint256" },
+        { name: "layer1OwnerLock", type: "Script" },
+        { name: "withdraw", type: "WithdrawalAsset" },
+      ],
+      Script: [
+        { name: "codeHash", type: "bytes32" },
+        { name: "hashType", type: "string" },
+        { name: "args", type: "bytes" },
+      ],
+      WithdrawalAsset: [
+        { name: "ckbCapacity", type: "uint256" },
+        { name: "UDTAmount", type: "uint256" },
+        { name: "UDTScriptHash", type: "bytes32" },
+      ],
+    }
+  };
 
-  const prefix = Buffer.from(`\x19Ethereum Signed Message:\n32`);
-  const buf = Buffer.concat([prefix, Buffer.from(message.slice(2), "hex")]);
-  return `0x${keccak256(buf).toString("hex")}`;
+
+  return typedMsg;
 }

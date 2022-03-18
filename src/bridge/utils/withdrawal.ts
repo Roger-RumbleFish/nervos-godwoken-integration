@@ -1,14 +1,30 @@
 import { Cell, Hash, HexNumber, HexString } from "@ckb-lumos/base";
 import { minimalCellCapacity } from "@ckb-lumos/helpers";
-import { WithdrawalLockArgs } from "./base/types";
 import { Reader } from "ckb-js-toolkit";
-import { NormalizeWithdrawalLockArgs } from "./base/normalizers";
-import { SerializeWithdrawalLockArgs } from "@polyjuice-provider/godwoken/schemas";
+import { WithdrawalLockArgs } from "./godwoken";
+import { NormalizeWithdrawalLockArgs } from "./godwoken/normalizer";
+import { SerializeWithdrawalLockArgs } from "./godwoken/schema_v1";
 
 export interface WithdrawalRequest {
   amount: bigint;
   withdrawalBlockNumber: bigint;
   cell: Cell;
+}
+
+export interface WithdrawalRequestFromApi {
+  withdrawal: {
+    request: {
+      nonce: HexNumber;
+      capacity: HexNumber;
+      amount: HexNumber;
+      sudt_script_hash: HexString;
+      owner_lock_hash: HexString;
+      chain_id: HexNumber;
+      fee: HexNumber;
+    };
+    owner_lock: {};
+  };
+  status: 'committed';
 }
 
 export function minimalWithdrawalCapacity(isSudt: boolean): HexNumber {

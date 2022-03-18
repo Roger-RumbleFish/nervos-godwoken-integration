@@ -1,17 +1,16 @@
-import { Cell, Script, utils } from "@ckb-lumos/lumos";
+import { Cell, Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/lumos";
 import { helpers } from "@ckitjs/ckit";
-import { Godwoker, RequireResult } from "@polyjuice-provider/base";
-import { SerializeWithdrawalRequest } from "@polyjuice-provider/godwoken/schemas";
 import { Reader } from "ckb-js-toolkit";
 import { AddressTranslator } from "..";
 import { WalletBase } from "../wallet-base";
-import { NormalizeWithdrawalRequest } from "./utils/base/normalizers";
-import { generateWithdrawalRequest } from "./utils/transaction";
+import { generateWithdrawalMessage } from "./utils/transaction";
 import {
   minimalWithdrawalCapacity,
   WithdrawalRequest,
+  WithdrawalRequestFromApi,
 } from "./utils/withdrawal";
-import { core } from "@polyjuice-provider/godwoken";
+import { withdrawal } from "./utils/utils";
+import { core, Godwoken, RawWithdrawalRequestV1, WithdrawalRequestExtra, WithdrawalRequestV1 } from "./utils/godwoken";
 import GodwokenUnlockBuilder, { GwUnlockBuilderCellDep } from "../builders/GodwokenUnlockBuilder";
 
 const { CkbAmount } = helpers;
@@ -26,10 +25,10 @@ export interface GodwokenWithdrawConfig {
   withdrawalLockCellDep: GwUnlockBuilderCellDep;
 }
 
-export type { GwUnlockBuilderCellDep, WithdrawalRequest, Script };
+export type { GwUnlockBuilderCellDep, Script, WithdrawalRequest, WithdrawalRequestFromApi };
 
 export class GodwokenWithdraw extends WalletBase {
-  constructor(public config: GodwokenWithdrawConfig, public addressTranslator: AddressTranslator) {
+  constructor(public godwokenRpcUrl: string, public config: GodwokenWithdrawConfig, public addressTranslator: AddressTranslator) {
     super(addressTranslator._config.CKB_URL, addressTranslator._config.INDEXER_URL);
   }
 
@@ -62,10 +61,12 @@ export class GodwokenWithdraw extends WalletBase {
     const withdrawalCells: WithdrawalRequest[] = [];
     for await (const cell of collectedCells) {
       const lock_args = cell.cell_output.lock.args;
-      const withdrawal_lock_args_data = "0x" + lock_args.slice(66);
+      const withdrawal_lock_args_data = "0x" + lock_args.slice(66, 274)
+
       const withdrawal_lock_args = new core.WithdrawalLockArgs(
         new Reader(withdrawal_lock_args_data)
       );
+
       const owner_lock_hash = new Reader(
         withdrawal_lock_args.getOwnerLockHash().raw()
       ).serializeJson();
@@ -75,12 +76,11 @@ export class GodwokenWithdraw extends WalletBase {
       }
 
       const withdrawalBlockNumber = withdrawal_lock_args
-        .getWithdrawalBlockNumber()
-        .toLittleEndianBigUint64();
+        .getWithdrawalBlockNumber();
 
       withdrawalCells.push({
         cell,
-        withdrawalBlockNumber,
+        withdrawalBlockNumber: withdrawalBlockNumber.view.getBigUint64(0, true),
         amount: BigInt(parseInt(cell.cell_output.capacity, 16)),
       });
     }
@@ -90,9 +90,14 @@ export class GodwokenWithdraw extends WalletBase {
     );
   }
 
-  async withdraw(fromEthereumAddress: string, amountInCkb: string, godwokenRpcUrl: string): Promise<string | undefined> {
-    const { rollupTypeHash, ethAccountLockScriptTypeHash, creatorAccountId, polyjuiceValidatorScriptCodeHash } = this.config;
+  async fetchWithdrawalRequestById(
+    id: string
+  ): Promise<WithdrawalRequestFromApi> {
+    const godwokenWeb3 = new Godwoken(this.godwokenRpcUrl);
+    return (godwokenWeb3 as any).rpcCall("get_withdrawal", id);
+  }
 
+  async withdraw(fromEthereumAddress: string, amountInCkb: string, godwokenRpcUrl: string): Promise<string | undefined> {
     const minimum = CkbAmount.fromShannon(
       minimalWithdrawalCapacity(false),
     );
@@ -102,60 +107,39 @@ export class GodwokenWithdraw extends WalletBase {
       throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} Shannon.`);
     }
 
-    const godwoker = new Godwoker(godwokenRpcUrl);
-    await godwoker.init();
+    const godwokenWeb3 = new Godwoken(godwokenRpcUrl);
 
-    const fromId = await godwoker.getAccountIdByEoaEthAddress(
-      fromEthereumAddress
-    );
+    const layer2AccountScriptHash = this.addressTranslator.getLayer2EthLockHash(fromEthereumAddress);
+    const fromId = await godwokenWeb3.getAccountIdByScriptHash(layer2AccountScriptHash);
 
+    if (typeof fromId === 'undefined') {
+      throw new Error('"fromId" is undefined. Is your Godwoken account created?');
+    }
+
+    const nonce: number = await godwokenWeb3.getNonce(fromId!);
+    const chainIdAsHex = await godwokenWeb3.getChainId();
     const capacity = "0x" + desiredAmount.toHex().slice(2).padStart(16, "0");
     const address = this.addressTranslator.ethAddressToCkbAddress(fromEthereumAddress);
-    const lockScript = this._provider.parseToScript(address);
-    const ownerLockHash = utils.computeScriptHash(lockScript);
-    const fee = {
-      sudt_id: "0x1",
-      amount: "0x0",
-    };
+    const layerOneOwnerLockScript = this._provider.parseToScript(address);
+    
+    const fee = '0x0';
+    const amount = '0x0';
 
-    const withdrawalConfig = {
-      rollupTypeHash: rollupTypeHash,
-      polyjuice: {
-        ethAccountLockCodeHash: ethAccountLockScriptTypeHash,
-        creatorAccountId,
-        scriptCodeHash: polyjuiceValidatorScriptCodeHash,
-      },
-    };
-
-    const request = await generateWithdrawalRequest(
-      godwoker,
+    const withdrawalRequestExtra = await this.generateWithdrawalRequest(
       fromEthereumAddress,
       {
-        fromId,
         capacity,
-        amount: "0x0",
-        ownerLockHash,
+        amount,
+        layerOneOwnerLockScript,
         fee,
-      },
-      {
-        config: withdrawalConfig,
+        nonce,
+        chainIdAsHex
       }
     );
 
-    const normalizedRequest = NormalizeWithdrawalRequest(request);
+    const result = await godwokenWeb3.submitWithdrawalReqV1(withdrawalRequestExtra);
 
-    const data = new Reader(
-      SerializeWithdrawalRequest(normalizedRequest)
-    ).serializeJson();
-
-    const response = await godwoker.jsonRPC(
-      "gw_submit_withdrawal_request",
-      [data],
-      "",
-      RequireResult.canBeEmpty
-    );
-
-    return response?.result;
+    return result;
   }
 
   async getRollupCellWithState() {
@@ -185,7 +169,7 @@ export class GodwokenWithdraw extends WalletBase {
     const globalState = new core.GlobalState(new Reader(rollupCell.data));
     const lastFinalizedBlockNumber = globalState
       .getLastFinalizedBlockNumber()
-      .toLittleEndianBigUint64();
+      .view.getBigUint64(0, true)
 
     return { rollupCell, lastFinalizedBlockNumber };
   }
@@ -236,5 +220,80 @@ export class GodwokenWithdraw extends WalletBase {
     const txHash = await this._provider.sendTransaction(signedTx);
 
     return txHash;
+  }
+
+  protected async generateWithdrawalRequest(
+    ethereumAddress: string,
+    {
+      capacity,
+      amount,
+      layerOneOwnerLockScript,
+      fee,
+      nonce,
+      chainIdAsHex,
+      sudtScriptHash = "0x" + "00".repeat(32),
+    }: {
+      capacity: HexNumber;
+      amount: HexNumber;
+      layerOneOwnerLockScript: Script;
+      fee: string;
+      nonce: number;
+      chainIdAsHex: HexNumber;
+      sudtScriptHash?: Hash;
+    },
+    {
+      config = {},
+    }: {
+      config?: any;
+    } = {}
+  ) {
+    const ckbSudtScriptHash =
+      "0x0000000000000000000000000000000000000000000000000000000000000000";
+  
+    if (config == null) {
+      config = {};
+    }
+  
+    const isSudt = sudtScriptHash !== ckbSudtScriptHash;
+    let minCapacity = withdrawal.minimalWithdrawalCapacity(isSudt);
+    if (BigInt(capacity) < BigInt(minCapacity)) {
+      throw new Error(
+        `Withdrawal required ${BigInt(
+          minCapacity
+        )} shannons at least, provided ${BigInt(capacity)}.`
+      );
+    }
+  
+    const layer2AccountScriptHash = this.addressTranslator.getLayer2EthLockHash(ethereumAddress);
+    const ownerLockHash = utils.computeScriptHash(layerOneOwnerLockScript);
+
+    const rawWithdrawalRequest: RawWithdrawalRequestV1 = {
+      chain_id: chainIdAsHex,
+      nonce: `0x${nonce.toString(16)}`,
+      capacity,
+      amount,
+      sudt_script_hash: sudtScriptHash,
+      account_script_hash: layer2AccountScriptHash,
+      owner_lock_hash: ownerLockHash,
+      fee
+    };
+  
+    const message = generateWithdrawalMessage(
+      rawWithdrawalRequest,
+      layerOneOwnerLockScript
+    );
+  
+    const signature: HexString = await this.signTyped(message);
+  
+    const withdrawalReq: WithdrawalRequestV1 = {
+      raw: rawWithdrawalRequest,
+      signature
+    };
+    const withdrawalReqExtra: WithdrawalRequestExtra = {
+      request: withdrawalReq,
+      owner_lock: layerOneOwnerLockScript
+    };
+        
+    return withdrawalReqExtra;
   }
 }
