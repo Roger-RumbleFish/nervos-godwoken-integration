@@ -1,34 +1,5 @@
-import { Hash, HexString, Script, utils } from "@ckb-lumos/base";
-
-import { Reader } from "ckb-js-toolkit";
-import keccak256 from "keccak256";
-import { normalizer } from "@polyjuice-provider/godwoken";
-import { serializeRawL2Transaction } from "@polyjuice-provider/base";
-import { RawL2Transaction, RawWithdrawalRequestV1 } from "../godwoken";
-
-const { NormalizeRawL2Transaction } = normalizer;
-
-export function generateTransactionMessage(
-  rawL2Transaction: RawL2Transaction,
-  senderScriptHash: Hash,
-  receiverScriptHash: Hash,
-  rollupTypeHash: Hash
-): HexString {
-  const rawTxHex = new Reader(
-    serializeRawL2Transaction(NormalizeRawL2Transaction(rawL2Transaction))
-  ).serializeJson();
-
-  const data =
-    rollupTypeHash +
-    senderScriptHash.slice(2) +
-    receiverScriptHash.slice(2) +
-    rawTxHex.slice(2);
-  const message = new utils.CKBHasher().update(data).digestHex();
-
-  const prefix = Buffer.from(`\x19Ethereum Signed Message:\n32`);
-  const buf = Buffer.concat([prefix, Buffer.from(message.slice(2), "hex")]);
-  return `0x${keccak256(buf).toString("hex")}`;
-}
+import { Script } from "@ckb-lumos/base";
+import { RawWithdrawalRequestV1 } from "../godwoken";
 
 export function generateWithdrawalMessage(
   rawRequest: RawWithdrawalRequestV1,
