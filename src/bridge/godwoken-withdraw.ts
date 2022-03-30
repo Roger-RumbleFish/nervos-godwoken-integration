@@ -174,54 +174,6 @@ export class GodwokenWithdraw extends WalletBase {
     return { rollupCell, lastFinalizedBlockNumber };
   }
 
-  async unlock(
-    request: WithdrawalRequest,
-    ownerEthereumAddress: string
-  ): Promise<string> {
-    const { rollupCell } = await this.getRollupCellWithState();
-
-    if (!rollupCell?.out_point) {
-      throw new Error("Rollup cell missing.");
-    }
-
-    if (!this._signer) {
-      throw new Error('Signer is undefined. Make sure to .connectWallet()');
-    }
-
-    const ckbAddressAsString = this.addressTranslator.ethAddressToCkbAddress(ownerEthereumAddress);
-
-    const builder = new GodwokenUnlockBuilder(
-      ckbAddressAsString,
-      request,
-      this._provider,
-      '10000',
-      this.config.withdrawalLockCellDep,
-      {
-        depType: 'code',
-        tx_hash: rollupCell.out_point.tx_hash,
-        index: rollupCell.out_point.index
-      },
-      {
-        depType: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.DEP_TYPE,
-        tx_hash: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.TX_HASH,
-        index: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.INDEX,
-      },
-      {
-        depType: this._provider.config.SCRIPTS.RC_LOCK.DEP_TYPE,
-        tx_hash: this._provider.config.SCRIPTS.RC_LOCK.TX_HASH,
-        index: this._provider.config.SCRIPTS.RC_LOCK.INDEX,
-      }
-    );
-
-    const tx = await builder.build();
-    tx.validate();
-    const signedTx = await this._signer.seal(tx);
-    signedTx.witnesses[0] = builder.getWithdrawalWitnessArgs();
-    const txHash = await this._provider.sendTransaction(signedTx);
-
-    return txHash;
-  }
-
   protected async generateWithdrawalRequest(
     ethereumAddress: string,
     {
