@@ -1,4 +1,8 @@
 import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
+import {
+  helpers
+} from '@ckitjs/ckit';
+
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
@@ -8,14 +12,11 @@ import {
   getRollupTypeHash,
   serializeArgs,
 } from "./helpers";
-import {
-  helpers,
-  TransferCkbBuilder,
-} from '@ckitjs/ckit';
-import { WalletBase } from "../wallet-base";
+import { WalletAssetsSender } from "../wallet-assets-sender";
 
 const { CkbAmount } = helpers;
-export class AddressTranslator extends WalletBase {
+
+export class AddressTranslator extends WalletAssetsSender {
   public _config: IAddressTranslatorConfig
 
   private _deploymentConfig: DeploymentConfig
@@ -141,33 +142,18 @@ export class AddressTranslator extends WalletBase {
    * Require for user to have ~470 ckb on L1
    * Need to be called in web with metamask installed */
   /** Local CKB has no default PWCore, no creation of Layer2 PW Address */
-  async createLayer2Address(ethereumAddress: HexString): Promise<string> {
-    if (!this._signer) {
-      throw new Error('<AddressTranslator>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
-    }
+  async createLayer2Address(ethereumAddress: HexString, depositAmountInCkb = '400'): Promise<string> {
+    const depositAmountInShannons = CkbAmount.fromCkb(depositAmountInCkb).toString();
+    const minimumCkbAmount = (BigInt(depositAmountInCkb) + BigInt('62')).toString();
+    const minimumAmountInShannons = CkbAmount.fromCkb(minimumCkbAmount).toString(); 
 
-    const amount = CkbAmount.fromCkb(400);
-    const sender = await this._signer.getAddress();
-    const senderBalance = CkbAmount.fromShannon(await this._provider.getCkbLiveCellsBalance(sender));
-
-    if (senderBalance.lt(CkbAmount.fromCkb(462))) {
-      throw new Error(`Balance of sender (address: "${sender}") has to be minimum 462 CKB.`);
-    }
-
+    await this.assertMinimumBalanceOfCkb(minimumAmountInShannons);
+   
     const l2Address = await this.getLayer2DepositAddress(
       ethereumAddress
     );
 
-    const txBuilder = new TransferCkbBuilder(
-      { recipients: [{ recipient: l2Address, amount: amount.toString(), capacityPolicy: 'createCell' }] },
-      this._provider,
-      sender,
-    );
-
-    const tx = await txBuilder.build();
-    const txHash = await this._provider.sendTransaction(await this._signer.seal(tx));
-      
-    return txHash;
+    return this.sendCKB(depositAmountInShannons, l2Address);
   }
 
   getLayer2EthLockHash(
@@ -179,14 +165,12 @@ export class AddressTranslator extends WalletBase {
       args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
 
-    const layer2LockHash = utils.computeScriptHash(layer2Lock);
-
-    return layer2LockHash;
+    return utils.computeScriptHash(layer2Lock);
   }
 
   ckbAddressToLockScriptHash(address: CkbAddress): HexString {
     const lock = this._provider.parseToScript(address);
-    const accountLockScriptHash = utils.computeScriptHash(lock);
-    return accountLockScriptHash;
+    
+    return utils.computeScriptHash(lock);
   }
 }

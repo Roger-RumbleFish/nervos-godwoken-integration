@@ -12,16 +12,14 @@
     "test": "jest"
   },
   "dependencies": {
-    "@ckb-lumos/lumos": "0.17.0-rc8",
-    "@ckitjs/base": "0.1.0",
-    "@ckitjs/ckit": "0.1.0",
-    "@ckitjs/utils": "0.1.0",
+    "@ckb-lumos/lumos": "0.17.0-rc9",
+    "@ckitjs/base": "0.2.0",
+    "@ckitjs/ckit": "0.2.0",
+    "@ckitjs/utils": "0.2.0",
     "@ethersproject/bignumber": "^5.4.1",
     "@metamask/eth-sig-util": "^4.0.0",
-    "@nervosnetwork/ckb-types": "0.101.0",
     "ckb-js-toolkit": "0.10.2",
     "json-rpc-2.0": "^0.2.16",
-    "keccak256": "^1.0.6",
     "node-fetch": "2.6.7"
   },
   "devDependencies": {

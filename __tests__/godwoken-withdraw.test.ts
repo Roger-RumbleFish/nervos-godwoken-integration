@@ -1,6 +1,8 @@
 import { AddressTranslator } from '../src/address';
 import { GodwokenWithdraw, GodwokenWithdrawConfig } from '../src/bridge/godwoken-withdraw';
 
+jest.setTimeout(20000);
+
 describe('GodwokenWithdraw', () => {
     test('canWithdrawAmount() works', async () => {
         const translator = new AddressTranslator();
