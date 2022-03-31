@@ -272,30 +272,4 @@ export class GodwokenUtils {
       args,
     };
   }
-
-  static createRawWithdrawalRequest(
-    nonce: Uint32,
-    capacity: Uint64,
-    amount: Uint128,
-    sudt_script_hash: Hash,
-    account_script_hash: Hash,
-    sell_amount: Uint128,
-    sell_capacity: Uint64,
-    owner_lock_hash: Hash,
-    payment_lock_hash: Hash,
-    fee: Fee
-  ): RawWithdrawalRequest {
-    return {
-      nonce: "0x" + BigInt(nonce).toString(16),
-      capacity: "0x" + BigInt(capacity).toString(16),
-      amount: "0x" + BigInt(amount).toString(16),
-      sudt_script_hash: sudt_script_hash,
-      account_script_hash: account_script_hash,
-      sell_amount: "0x" + BigInt(sell_amount).toString(16),
-      sell_capacity: "0x" + BigInt(sell_capacity).toString(16),
-      owner_lock_hash: owner_lock_hash,
-      payment_lock_hash: payment_lock_hash,
-      fee,
-    };
-  }
 }

@@ -5,13 +5,11 @@ import { AddressTranslator } from "..";
 import { WalletBase } from "../wallet-base";
 import { generateWithdrawalMessage } from "./utils/transaction";
 import {
-  minimalWithdrawalCapacity,
+  getMinimumWithdrawalCapacity,
   WithdrawalRequest,
   WithdrawalRequestFromApi,
 } from "./utils/withdrawal";
-import { withdrawal } from "./utils/utils";
 import { core, Godwoken, RawWithdrawalRequestV1, WithdrawalRequestExtra, WithdrawalRequestV1 } from "./utils/godwoken";
-import GodwokenUnlockBuilder, { GwUnlockBuilderCellDep } from "../builders/GodwokenUnlockBuilder";
 
 const { CkbAmount } = helpers;
 
@@ -22,10 +20,9 @@ export interface GodwokenWithdrawConfig {
   creatorAccountId: string;
   polyjuiceValidatorScriptCodeHash: string;
   withdrawalLockScript: Script;
-  withdrawalLockCellDep: GwUnlockBuilderCellDep;
 }
 
-export type { GwUnlockBuilderCellDep, Script, WithdrawalRequest, WithdrawalRequestFromApi };
+export type { Script, WithdrawalRequest, WithdrawalRequestFromApi };
 
 export class GodwokenWithdraw extends WalletBase {
   constructor(public godwokenRpcUrl: string, public config: GodwokenWithdrawConfig, public addressTranslator: AddressTranslator) {
@@ -97,16 +94,22 @@ export class GodwokenWithdraw extends WalletBase {
     return (godwokenWeb3 as any).rpcCall("get_withdrawal", id);
   }
 
-  async withdraw(fromEthereumAddress: string, amountInCkb: string): Promise<string | undefined> {
+  canWithdrawAmount(amountInCkb: string) {
     const minimum = CkbAmount.fromShannon(
-      minimalWithdrawalCapacity(false),
+      getMinimumWithdrawalCapacity(false),
     );
     const desiredAmount = CkbAmount.fromCkb(amountInCkb);
 
-    if (desiredAmount.lt(minimum)) {
-      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} Shannon.`);
-    }
+    return { canWithdraw: desiredAmount.gte(minimum), minimum: minimum.toString() }
+  }
 
+  async withdraw(fromEthereumAddress: string, amountInCkb: string): Promise<string | undefined> {
+    const { canWithdraw, minimum } = this.canWithdrawAmount(amountInCkb);
+    if (!canWithdraw) {
+      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum} Shannon.`);
+    }
+    
+    const desiredAmount = CkbAmount.fromCkb(amountInCkb);
     const godwokenWeb3 = new Godwoken(this.godwokenRpcUrl);
 
     const layer2AccountScriptHash = this.addressTranslator.getLayer2EthLockHash(fromEthereumAddress);
@@ -174,54 +177,6 @@ export class GodwokenWithdraw extends WalletBase {
     return { rollupCell, lastFinalizedBlockNumber };
   }
 
-  async unlock(
-    request: WithdrawalRequest,
-    ownerEthereumAddress: string
-  ): Promise<string> {
-    const { rollupCell } = await this.getRollupCellWithState();
-
-    if (!rollupCell?.out_point) {
-      throw new Error("Rollup cell missing.");
-    }
-
-    if (!this._signer) {
-      throw new Error('Signer is undefined. Make sure to .connectWallet()');
-    }
-
-    const ckbAddressAsString = this.addressTranslator.ethAddressToCkbAddress(ownerEthereumAddress);
-
-    const builder = new GodwokenUnlockBuilder(
-      ckbAddressAsString,
-      request,
-      this._provider,
-      '10000',
-      this.config.withdrawalLockCellDep,
-      {
-        depType: 'code',
-        tx_hash: rollupCell.out_point.tx_hash,
-        index: rollupCell.out_point.index
-      },
-      {
-        depType: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.DEP_TYPE,
-        tx_hash: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.TX_HASH,
-        index: this._provider.config.SCRIPTS.SECP256K1_BLAKE160.INDEX,
-      },
-      {
-        depType: this._provider.config.SCRIPTS.RC_LOCK.DEP_TYPE,
-        tx_hash: this._provider.config.SCRIPTS.RC_LOCK.TX_HASH,
-        index: this._provider.config.SCRIPTS.RC_LOCK.INDEX,
-      }
-    );
-
-    const tx = await builder.build();
-    tx.validate();
-    const signedTx = await this._signer.seal(tx);
-    signedTx.witnesses[0] = builder.getWithdrawalWitnessArgs();
-    const txHash = await this._provider.sendTransaction(signedTx);
-
-    return txHash;
-  }
-
   protected async generateWithdrawalRequest(
     ethereumAddress: string,
     {
@@ -255,7 +210,7 @@ export class GodwokenWithdraw extends WalletBase {
     }
   
     const isSudt = sudtScriptHash !== ckbSudtScriptHash;
-    let minCapacity = withdrawal.minimalWithdrawalCapacity(isSudt);
+    let minCapacity = getMinimumWithdrawalCapacity(isSudt);
     if (BigInt(capacity) < BigInt(minCapacity)) {
       throw new Error(
         `Withdrawal required ${BigInt(

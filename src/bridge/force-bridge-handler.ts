@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { BigNumber } from "@ethersproject/bignumber";
 import {
   IBridgeRPCHandler,
   GenerateBridgeInTransactionPayload,
@@ -22,13 +22,16 @@ import {
   TransactionSummaryWithStatus,
 } from "./types";
 import { JSONRPCClient, JSONRPCRequest } from "json-rpc-2.0";
+import nodeFetch from 'node-fetch';
 
 export class BridgeRPCHandler implements IBridgeRPCHandler {
   client: JSONRPCClient;
 
   constructor(forceBridgeUrl: string) {
-    this.client = new JSONRPCClient((jsonRPCRequest: JSONRPCRequest) =>
-      fetch(forceBridgeUrl, {
+    this.client = new JSONRPCClient((jsonRPCRequest: JSONRPCRequest) => {
+      const fetch: typeof nodeFetch = (typeof window !== 'undefined' && window.fetch as any) || nodeFetch;
+      
+      return fetch(forceBridgeUrl, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -46,7 +49,7 @@ export class BridgeRPCHandler implements IBridgeRPCHandler {
           return Promise.reject(new Error("request id undefined"));
         }
       })
-    );
+    });
   }
 
   getBridgeInNervosBridgeFee(
@@ -78,7 +81,7 @@ export class BridgeRPCHandler implements IBridgeRPCHandler {
       case "Ethereum":
         {
           const rawTx = result.rawTransaction;
-          rawTx.value = ethers.BigNumber.from(rawTx.value?.hex ?? 0);
+          rawTx.value = BigNumber.from(rawTx.value?.hex ?? 0);
           result.rawTransaction = rawTx;
         }
         break;

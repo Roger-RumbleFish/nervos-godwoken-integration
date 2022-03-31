@@ -148,7 +148,7 @@ export class WalletBase {
     }
 
     private async signMessageViaBrowserProvider(typedMessage: any) {
-      const result = await (window.ethereum as any).request({ method: 'eth_signTypedData_v4',
+      const result = await ((window as any).ethereum as any).request({ method: 'eth_signTypedData_v4',
         params: [this.getConnectedWalletAddress(), JSON.stringify(typedMessage)]
       })
     

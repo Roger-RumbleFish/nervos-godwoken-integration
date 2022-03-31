@@ -49,19 +49,3 @@ await godwokenWithdraw.connectWallet();
 
 await godwokenWithdraw.withdraw(ethAddress, amount);
 ```
-
-## Unlock
-
-```
-const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';
-const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
-await godwokenWithdraw.init('testnet');
-
-const withdrawRequests = await godwokenWithdraw.fetchWithdrawalRequests(ethAddress);
-
-await godwokenWithdraw.connectWallet();
-
-const txId = await godwokenWithdraw.unlock(withdrawRequests[0], ethAddress);
-
-toast.success(`Transaction submitted: ${txId} (Layer 1 transaction)`);
-```
