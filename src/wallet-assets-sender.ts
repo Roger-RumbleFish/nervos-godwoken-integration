@@ -1,4 +1,4 @@
-import { HexNumber, HexString } from "@ckb-lumos/lumos";
+import { HexString } from "@ckb-lumos/lumos";
 import {
   helpers,
   TransferCkbBuilder,
@@ -9,35 +9,39 @@ import { WalletBase } from "./wallet-base";
 
 const { CkbAmount } = helpers;
 
-const sudtTypeScriptCodeHash = '0xc5e5dcf215925f7ef4dfaf5f4b4f105bc321c02776d6e7d52a1db3fcd9d011a4';
-
 export class WalletAssetsSender extends WalletBase {
-  async getSUDTBalance(issuerLockHash: string): Promise<HexNumber> {
-    if (!this._signer) {
-      throw new Error('<WalletAssetsSender>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
-    }
-
-    const sender = await this._signer.getAddress();
-
-    console.log({
-      sender
-    });
-
-    return this._provider.getUdtBalance(sender, this.createSUDTTypeScript(issuerLockHash));
+  /**
+   * 
+   * @param address CKB address
+   * @returns CKB balance in Shannons as string.
+   */
+  async getCKBBalance(address: string): Promise<string> {
+    return BigInt(await this._provider.getCkbLiveCellsBalance(address)).toString();
   }
 
-  async assertMinimumBalanceOfCkb(amountInCkb: string) {
-    if (!this._signer) {
-      throw new Error('<WalletAssetsSender>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
-    }
+  async getSUDTBalance(address: string, issuerLockHash: string): Promise<string> {
+    return BigInt(await this._provider.getUdtBalance(address, this.createSUDTTypeScript(issuerLockHash))).toString();
+  }
 
-    const amount = CkbAmount.fromCkb(amountInCkb);
-    const sender = await this._signer.getAddress();
+  async getConnectedWalletCKBBalance() {
+    return this.getCKBBalance(await this.getConnectedWalletCKBAddress());
+  }
 
-    const senderBalance = CkbAmount.fromShannon(await this._provider.getCkbLiveCellsBalance(sender));
+  async getConnectedWalletSUDTBalance(issuerLockHash: string) {
+    return this.getSUDTBalance(await this.getConnectedWalletCKBAddress(), issuerLockHash);
+  }
+
+  /**
+   * 
+   * @param amountInShannons Amount in Shannons (lowest denominator of CKB)
+   * @returns 
+   */
+  async assertMinimumBalanceOfCkb(amountInShannons: string) {
+    const amount = CkbAmount.fromShannon(amountInShannons);
+    const senderBalance = CkbAmount.fromShannon(await this.getConnectedWalletCKBBalance());
     
     if (senderBalance.lt(amount)) {
-      throw new Error(`Balance of sender (address: "${sender}") has to be minimum 462 CKB.`);
+      throw new Error(`Balance of sender (address: "${await this.getConnectedWalletCKBAddress()}") has to be minimum ${amountInShannons} Shannons.`);
     }
 
     return true;
@@ -45,60 +49,51 @@ export class WalletAssetsSender extends WalletBase {
 
   /**
    * Send CKB from Omnilock Layer 1 account to any CKB address.
+   * 
+   * @param amountInShannons Amount in Shannons (lowest denominator of CKB) to send.
+   * @param toAddress CKB address to sent to.
+   * @returns 
    */
-  async sendCKB(amountInCkb: string, toAddress: HexString): Promise<string> {
-    if (!this._signer) {
-      throw new Error('<WalletAssetsSender>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
-    }
-
-    const amount = CkbAmount.fromCkb(amountInCkb);
-    const sender = await this._signer.getAddress();
+  async sendCKB(amountInShannons: string, toAddress: HexString): Promise<string> {
+    this.assertSignerIsDefined(this._signer);
 
     const txBuilder = new TransferCkbBuilder(
-      { recipients: [{ recipient: toAddress, amount: amount.toString(), capacityPolicy: 'createCell' }] },
+      { recipients: [{ recipient: toAddress, amount: amountInShannons, capacityPolicy: 'createCell' }] },
       this._provider,
-      sender,
+      await this.getConnectedWalletCKBAddress()
     );
 
     const tx = await txBuilder.build();
     
-    const txHash = await this._provider.sendTransaction(await this._signer.seal(tx));
-      
-    return txHash;
+    return this._provider.sendTransaction(await this._signer.seal(tx));
   }
 
   /**
-   * Send CKB from Omnilock Layer 1 account to any CKB address.
+   * 
+   * @param amount Amount in lowest denominator of SUDT
+   * @param toAddress CKB address
+   * @param issuerLockHash SUDT issuer lock hash
+   * @returns 
    */
    async sendSUDT(
       amount: string,
       toAddress: HexString,
       issuerLockHash: HexString
    ): Promise<string> {
-    if (!this._signer) {
-      throw new Error('<WalletAssetsSender>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.');
-    }
-
-    const sender = await this._signer.getAddress();
+    this.assertSignerIsDefined(this._signer);
 
     const txBuilder = new AcpTransferSudtBuilder(
       { recipients: [{ recipient: toAddress, amount, sudt: this.createSUDTTypeScript(issuerLockHash), policy: "createCell" }] },
       this._provider,
-      sender
+      await this.getConnectedWalletCKBAddress()
     );
 
     const tx = await txBuilder.build();
     
-    const txHash = await this._provider.sendTransaction(await this._signer.seal(tx));
-      
-    return txHash;
+    return this._provider.sendTransaction(await this._signer.seal(tx));
   }
 
   createSUDTTypeScript(issuerLockHash: string): CkbTypeScript {
-    return {
-      code_hash: sudtTypeScriptCodeHash,
-      hash_type: "type",
-      args: issuerLockHash
-    };
+    return this._provider.newScript('SUDT', issuerLockHash);
   }
 }

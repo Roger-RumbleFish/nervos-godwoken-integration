@@ -1,4 +1,8 @@
 import { Script, HexString, utils, Hash, PackedSince, Address as CkbAddress } from "@ckb-lumos/lumos";
+import {
+  helpers
+} from '@ckitjs/ckit';
+
 import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
@@ -9,6 +13,8 @@ import {
   serializeArgs,
 } from "./helpers";
 import { WalletAssetsSender } from "../wallet-assets-sender";
+
+const { CkbAmount } = helpers;
 
 export class AddressTranslator extends WalletAssetsSender {
   public _config: IAddressTranslatorConfig
@@ -137,15 +143,17 @@ export class AddressTranslator extends WalletAssetsSender {
    * Need to be called in web with metamask installed */
   /** Local CKB has no default PWCore, no creation of Layer2 PW Address */
   async createLayer2Address(ethereumAddress: HexString, depositAmountInCkb = '400'): Promise<string> {
+    const depositAmountInShannons = CkbAmount.fromCkb(depositAmountInCkb).toString();
     const minimumCkbAmount = (BigInt(depositAmountInCkb) + BigInt('62')).toString();
+    const minimumAmountInShannons = CkbAmount.fromCkb(minimumCkbAmount).toString(); 
 
-    await this.assertMinimumBalanceOfCkb(minimumCkbAmount);
+    await this.assertMinimumBalanceOfCkb(minimumAmountInShannons);
    
     const l2Address = await this.getLayer2DepositAddress(
       ethereumAddress
     );
 
-    return this.sendCKB(depositAmountInCkb, l2Address);
+    return this.sendCKB(depositAmountInShannons, l2Address);
   }
 
   getLayer2EthLockHash(
@@ -157,14 +165,12 @@ export class AddressTranslator extends WalletAssetsSender {
       args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
 
-    const layer2LockHash = utils.computeScriptHash(layer2Lock);
-
-    return layer2LockHash;
+    return utils.computeScriptHash(layer2Lock);
   }
 
   ckbAddressToLockScriptHash(address: CkbAddress): HexString {
     const lock = this._provider.parseToScript(address);
-    const accountLockScriptHash = utils.computeScriptHash(lock);
-    return accountLockScriptHash;
+    
+    return utils.computeScriptHash(lock);
   }
 }

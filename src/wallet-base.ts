@@ -43,7 +43,7 @@ export class WalletBase {
 
         if (signer) {
             if (!isRcSigner(signer)) {
-                throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
+                throw new Error(`<WalletBase>._signer is not RcSigner.`);
             }
 
             this._signer = signer;
@@ -83,16 +83,16 @@ export class WalletBase {
         }
   
         if (!this._wallet) {
-          return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
+          return reject(`<WalletBase>._wallet is undefined. Can't connect to it.`);
         }
   
         const listener = (signer: EntrySigner) => {
           if (!isRcSigner(signer)) {
-            throw new Error(`<AddressTranslator>._signer is not RcSigner.`);
+            throw new Error(`<WalletBase>._signer is not RcSigner.`);
           }
   
           if (!this._wallet) {
-            return reject(`<AddressTranslator>._wallet is undefined. Can't connect to it.`);
+            return reject(`<WalletBase>._wallet is undefined. Can't connect to it.`);
           }
   
           this._signer = signer;
@@ -101,7 +101,7 @@ export class WalletBase {
           if (walletStatus === 'connected') {
             resolve();
           } else {
-            reject(`<AddressTranslator> wallet status is: "${walletStatus}". Expected "connected".`);
+            reject(`<WalletBase> wallet status is: "${walletStatus}". Expected "connected".`);
           }
   
           (this._wallet as any).emitter.off(listener);
@@ -122,6 +122,18 @@ export class WalletBase {
       }
   
       return identity.pubkeyHash;
+    }
+
+    protected assertSignerIsDefined<T>(signer: T): asserts signer is NonNullable<T> {
+      if (signer === undefined || signer === null) {
+        throw new Error(`<WalletBase>._signer is undefined. Make sure Web3 provider is in window context or pass Ethereum private key to constructor.`);
+      }
+    }
+
+    async getConnectedWalletCKBAddress(): Promise<string> {
+      this.assertSignerIsDefined(this._signer);
+
+      return this._signer.getAddress();
     }
 
     signTyped(typedMessage: any): Promise<string> {
@@ -148,7 +160,7 @@ export class WalletBase {
     }
 
     private async signMessageViaBrowserProvider(typedMessage: any) {
-      const result = await (window.ethereum as any).request({ method: 'eth_signTypedData_v4',
+      const result = await ((window as any).ethereum as any).request({ method: 'eth_signTypedData_v4',
         params: [this.getConnectedWalletAddress(), JSON.stringify(typedMessage)]
       })
     
