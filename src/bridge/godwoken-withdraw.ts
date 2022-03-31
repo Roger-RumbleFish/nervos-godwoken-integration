@@ -5,11 +5,10 @@ import { Reader } from "ckb-js-toolkit";
 import { AddressTranslator } from "..";
 import { WalletBase } from "../wallet-base";
 import {
-  minimalWithdrawalCapacity,
+  getMinimumWithdrawalCapacity,
   WithdrawalRequest,
   WithdrawalRequestFromApi,
 } from "./utils/withdrawal";
-import { withdrawal } from "./utils/utils";
 import { core, Godwoken, RawWithdrawalRequestV1, WithdrawalRequestExtra, WithdrawalRequestV1 } from "./utils/godwoken";
 
 const { CkbAmount } = helpers;
@@ -95,16 +94,22 @@ export class GodwokenWithdraw extends WalletBase {
     return (godwokenWeb3 as any).rpcCall("get_withdrawal", id);
   }
 
-  async withdraw(fromEthereumAddress: string, amountInCkb: string): Promise<string | undefined> {
+  canWithdrawAmount(amountInCkb: string) {
     const minimum = CkbAmount.fromShannon(
-      minimalWithdrawalCapacity(false),
+      getMinimumWithdrawalCapacity(false),
     );
     const desiredAmount = CkbAmount.fromCkb(amountInCkb);
 
-    if (desiredAmount.lt(minimum)) {
-      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum.toString()} Shannon.`);
-    }
+    return { canWithdraw: desiredAmount.gte(minimum), minimum: minimum.toString() }
+  }
 
+  async withdraw(fromEthereumAddress: string, amountInCkb: string): Promise<string | undefined> {
+    const { canWithdraw, minimum } = this.canWithdrawAmount(amountInCkb);
+    if (!canWithdraw) {
+      throw new Error(`Too low amount to withdraw. Minimum is: ${minimum} Shannon.`);
+    }
+    
+    const desiredAmount = CkbAmount.fromCkb(amountInCkb);
     const godwokenWeb3 = new Godwoken(this.godwokenRpcUrl);
 
     const layer2AccountScriptHash = this.addressTranslator.getLayer2EthLockHash(fromEthereumAddress);
@@ -205,7 +210,7 @@ export class GodwokenWithdraw extends WalletBase {
     }
   
     const isSudt = sudtScriptHash !== ckbSudtScriptHash;
-    let minCapacity = withdrawal.minimalWithdrawalCapacity(isSudt);
+    let minCapacity = getMinimumWithdrawalCapacity(isSudt);
     if (BigInt(capacity) < BigInt(minCapacity)) {
       throw new Error(
         `Withdrawal required ${BigInt(
