@@ -38,7 +38,38 @@ const ethereumAddress = addressTranslator.getConnectedWalletAddress();
 const layer1TxHash = await addressTranslator.createLayer2Address(ethereumAddress);
 ```
 
-## Withdraw
+## Deposit tokens (SUDT) to Layer 2 account
+
+Notice that in sendSUDT additional CKB needs to be sent so resulting transaction output contains at least 400 CKB.
+
+```
+import { AddressTranslator, WalletAssetsSender  } from "nervos-godwoken-integration";
+
+const PRIVATE_KEY = '0xd9066ff9f753a1898709b568119055660a77d9aae4d7a4ad677b8fb3d2a571e5';
+const DCKB_ISSUER_HASH = '0xc43009f083e70ae3fee342d59b8df9eec24d669c1c3a3151706d305f5362c37e';
+
+const translator = new AddressTranslator();
+await translator.init('testnet');
+
+const assetSender = new WalletAssetsSender('https://testnet.ckb.dev/rpc', 'https://testnet.ckb.dev/indexer');
+await assetSender.init('testnet');
+
+await assetSender.connectWallet(PRIVATE_KEY);
+const ethAddress = assetSender.getConnectedWalletAddress();
+
+if (!ethAddress) {
+    throw new Error(`Wallet not connected.`);
+}
+
+const txHash = await assetSender.sendSUDT(
+    '100000000', // 1 dCKB
+    await translator.getLayer2DepositAddress(ethAddress),
+    DCKB_ISSUER_HASH,
+    (85 * 10**8).toString() // additional CKB capacity is required so resulting transaction output contains at least 400 CKB
+);
+```
+
+## Withdraw CKB from Layer 2 to Layer 1
 
 ```
 const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';

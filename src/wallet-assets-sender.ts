@@ -73,17 +73,19 @@ export class WalletAssetsSender extends WalletBase {
    * @param amount Amount in lowest denominator of SUDT
    * @param toAddress CKB address
    * @param issuerLockHash SUDT issuer lock hash
+   * @param additionalCKB Additional CKB in Shannons to send with SUDT transfer. Might be required for example for Layer 2 deposit which requires around 400 CKB.
    * @returns 
    */
    async sendSUDT(
       amount: string,
       toAddress: HexString,
-      issuerLockHash: HexString
+      issuerLockHash: HexString,
+      additionalCKB?: string
    ): Promise<string> {
     this.assertSignerIsDefined(this._signer);
 
     const txBuilder = new AcpTransferSudtBuilder(
-      { recipients: [{ recipient: toAddress, amount, sudt: this.createSUDTTypeScript(issuerLockHash), policy: "createCell" }] },
+      { recipients: [{ recipient: toAddress, amount, sudt: this.createSUDTTypeScript(issuerLockHash), policy: "createCell", additionalCapacity: additionalCKB ? '0x' + BigInt(additionalCKB).toString(16) : undefined }] },
       this._provider,
       await this.getConnectedWalletCKBAddress()
     );
