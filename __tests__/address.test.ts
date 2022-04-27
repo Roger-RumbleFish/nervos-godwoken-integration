@@ -14,7 +14,7 @@ describe('AddressTranslator', () => {
             expect(errorMessage).toBe('PWCore.config is empty. Did you call <AddressTranslator>.init() function?');
         }
     });
-    test('ethAddressToCkbAddress() correctly transforms ethereum address to portal wallet address locked by ethereum key on Nervos Layer 1 testnet', async () => {
+    test('ethAddressToCkbAddress() correctly transforms ethereum address to portal wallet address (CKB2021 address format) locked by ethereum key on Nervos Layer 1 testnet', async () => {
         const translator = new AddressTranslator();
         
         const ethAddress = '0xD173313A51f8fc37BcF67569b463abd89d81844f';
@@ -23,11 +23,10 @@ describe('AddressTranslator', () => {
     
         const portalWalletLayer1CkbAddress = translator.ethAddressToCkbAddress(ethAddress);
     
-        expect(portalWalletLayer1CkbAddress).toBe('ckt1q3vvtay34wndv9nckl8hah6fzzcltcqwcrx79apwp2a5lkd07fdx85tnxya9r78ux770vatfk336hkyasxzy7r38glc');
+        expect(portalWalletLayer1CkbAddress).toBe('ckt1qpvvtay34wndv9nckl8hah6fzzcltcqwcrx79apwp2a5lkd07fdxxqw3wvcn550clsmmean4dx6x827cnkqcgncz88uxh');
     });
 
-
-    test('getLayer2DepositAddress() correctly calculates Layer 2 deposit address secured by Portal Wallet lock on Layer 1', async () => {
+    test('getLayer2DepositAddress() correctly calculates Layer 2 deposit address (CKB2021 address format) secured by Portal Wallet lock on Layer 1', async () => {
         const translator = new AddressTranslator();
 
         const ethAddress = '0xD173313A51f8fc37BcF67569b463abd89d81844f';
@@ -37,6 +36,6 @@ describe('AddressTranslator', () => {
         const portalWalletLayer2DepositAddress = await translator.getLayer2DepositAddress(ethAddress);
     
         expect(portalWalletLayer2DepositAddress.addressString)
-            .toBe('ckt1q3dz2p4mdrvp5ywu4kk5edl2uc4p03puvx07g7kgqdau3n3dmypkqnxzuefxyp9wdghglncj77k5wt6p59sx6kukyjlwh5s467qgp8m25yqqqqqsqqqqqvqqqqqfjqqqqp303zade957p346euv9lgwy2zhpj6d0tkdhsgchl8kdnvhantykq6gqqqqpqqqqqqcqqqqqxyqqqqx7asf60w8pqpte2sfcfn90fdfzxue7ff2g8sawe9wacnqat6jmygqngqqqqpxv9ejjvgz2u63w3l839aadguh5rgtqd4devf97a0fpt4uqsz0k45tnxya9r78ux770vatfk336hkyasxzy7q9rqgqqqqqqcqwe3kzy');
+            .toBe('ckt1qpdz2p4mdrvp5ywu4kk5edl2uc4p03puvx07g7kgqdau3n3dmypkqq2vctn9ycsy4e4zar70ztm663e0gxskqm2mjcjta67jzhtcpqyld2ssqqqqzqqqqqpsqqqqpxgqqqqx97yt4hykncxxht83shapc3g2uxtf4awek7przlu7ekdjlkdvjcrfqqqqqyqqqqqrqqqqqqcsqqqqmmkp8facuyq9092p8pxv4a94ygmn8e99fq7r4my4mhzvr402tv3qzdqqqqqyeshx2f3qftn2968u7yhh44rj7sdpvpk4h93yhm4ay9whszqf76k3wvcn550clsmmean4dx6x827cnkqcgncq5vpqqqqqqrqqlmvzug');
     });
 });

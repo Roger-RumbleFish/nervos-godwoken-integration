@@ -20,7 +20,7 @@ import defaultConfig from "../config/config.json";
 import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 
-const { parseAddress, generateAddress } = helpers
+const { parseAddress, encodeToAddress } = helpers
 
 import {
   generateDeployConfig,
@@ -185,7 +185,7 @@ export class AddressTranslator {
     };
     const { predefined } = require("@ckb-lumos/config-manager");
 
-    const address = generateAddress(
+    const address = encodeToAddress(
       script as Script,
       PWCore.chainId === ChainID.ckb_testnet
         ? {
