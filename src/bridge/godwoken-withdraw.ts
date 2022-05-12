@@ -1,4 +1,4 @@
-import { Cell, Hash, HexNumber, HexString, Script, utils } from "@ckb-lumos/lumos";
+import { Cell, Hash, HexNumber, HexString, Script, utils, BI, toolkit, HashType } from "@ckb-lumos/lumos";
 import { helpers } from "@ckitjs/ckit";
 import { Reader } from "ckb-js-toolkit";
 
@@ -9,7 +9,8 @@ import {
   WithdrawalRequest,
   WithdrawalRequestFromApi,
 } from "./utils/withdrawal";
-import { core, Godwoken, RawWithdrawalRequestV1, WithdrawalRequestExtra, WithdrawalRequestV1 } from "./utils/godwoken";
+import { core, Godwoken } from "./utils/godwoken";
+import { RawWithdrawalRequestV1, WithdrawalRequestExtraCodec } from "./utils/godwoken/schemas/codecV1";
 
 const { CkbAmount } = helpers;
 
@@ -19,7 +20,7 @@ export interface GodwokenWithdrawConfig {
   ethAccountLockScriptTypeHash: string;
   creatorAccountId: string;
   polyjuiceValidatorScriptCodeHash: string;
-  withdrawalLockScript: Script;
+  withdrawalLockScriptTypeHash: string;
 }
 
 export type { Script, WithdrawalRequest, WithdrawalRequestFromApi };
@@ -43,8 +44,8 @@ export class GodwokenWithdraw extends WalletBase {
     //   - last_finalized_block_number
 
     const withdrawLock = {
-      code_hash: this.config.withdrawalLockScript.code_hash,
-      hash_type: this.config.withdrawalLockScript.hash_type,
+      code_hash: this.config.withdrawalLockScriptTypeHash,
+      hash_type: 'type' as HashType,
       args: this.config.rollupTypeHash, // prefix search
     };
 
@@ -140,7 +141,8 @@ export class GodwokenWithdraw extends WalletBase {
       }
     );
 
-    const result = await godwokenWeb3.submitWithdrawalReqV1(withdrawalRequestExtra);
+    const serializedRequest = new toolkit.Reader(WithdrawalRequestExtraCodec.pack(withdrawalRequestExtra)).serializeJson();
+    const result = await godwokenWeb3.submitWithdrawalRequest(serializedRequest);
 
     return result;
   }
@@ -223,28 +225,30 @@ export class GodwokenWithdraw extends WalletBase {
     const ownerLockHash = utils.computeScriptHash(layerOneOwnerLockScript);
 
     const rawWithdrawalRequest: RawWithdrawalRequestV1 = {
-      chain_id: chainIdAsHex,
-      nonce: `0x${nonce.toString(16)}`,
-      capacity,
-      amount,
+      chain_id: BI.from(chainIdAsHex),
+      nonce,
+      capacity: BI.from(capacity),
+      amount: BI.from(amount),
       sudt_script_hash: sudtScriptHash,
       account_script_hash: layer2AccountScriptHash,
       owner_lock_hash: ownerLockHash,
-      fee
+      fee: BI.from(fee),
+      registry_id: 2
     };
   
     const message = this.generateWithdrawalMessage(
       rawWithdrawalRequest,
-      layerOneOwnerLockScript
+      layerOneOwnerLockScript,
+      ethereumAddress
     );
   
     const signature: HexString = await this.signTyped(message);
   
-    const withdrawalReq: WithdrawalRequestV1 = {
+    const withdrawalReq = {
       raw: rawWithdrawalRequest,
       signature
     };
-    const withdrawalReqExtra: WithdrawalRequestExtra = {
+    const withdrawalReqExtra = {
       request: withdrawalReq,
       owner_lock: layerOneOwnerLockScript
     };
@@ -254,7 +258,8 @@ export class GodwokenWithdraw extends WalletBase {
 
   protected generateWithdrawalMessage(
     rawRequest: RawWithdrawalRequestV1,
-    ownerLockScript: Script
+    ownerLockScript: Script,
+    ownerEthereumAddress: string
   ) {
     return {
       domain: {
@@ -263,7 +268,10 @@ export class GodwokenWithdraw extends WalletBase {
         chainId: Number(rawRequest.chain_id),
       },
       message: {
-        accountScriptHash: rawRequest.account_script_hash,
+        address: {
+          registry: 'ETH',
+          address: ownerEthereumAddress
+        },
         nonce: Number(rawRequest.nonce),
         chainId: Number(rawRequest.chain_id),
         fee: Number(rawRequest.fee),
@@ -286,7 +294,7 @@ export class GodwokenWithdraw extends WalletBase {
           { name: "chainId", type: "uint256" },
         ],
         Withdrawal: [
-          { name: "accountScriptHash", type: "bytes32" },
+          { name: "address", type: "RegistryAddress" },
           { name: "nonce", type: "uint256" },
           { name: "chainId", type: "uint256" },
           { name: "fee", type: "uint256" },
@@ -302,6 +310,10 @@ export class GodwokenWithdraw extends WalletBase {
           { name: "ckbCapacity", type: "uint256" },
           { name: "UDTAmount", type: "uint256" },
           { name: "UDTScriptHash", type: "bytes32" },
+        ],
+        RegistryAddress: [
+          { name: "registry", type: "string" },
+          { name: "address", type: "address" },
         ],
       }
     };

@@ -2,24 +2,22 @@ import {
   Script,
   HexString,
   utils,
-  Hash,
-  PackedSince,
   Address as CkbAddress,
+  BI,
+  toolkit,
 } from "@ckb-lumos/lumos";
 import { helpers } from "@ckitjs/ckit";
 
 import defaultConfig from "../config/config.json";
-import { DepositionLockArgs, IAddressTranslatorConfig } from "./types";
+import { IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 import {
   delay,
   generateDeployConfig,
-  generateDepositionLock,
-  getRollupTypeHash,
-  serializeArgs,
 } from "./helpers";
 import { WalletAssetsSender } from "../wallet-assets-sender";
 import { RPC } from "ckb-js-toolkit";
+import { V1DepositLockArgs } from "../bridge/utils/godwoken/schemas/codecV1";
 
 const { CkbAmount } = helpers;
 
@@ -66,47 +64,38 @@ export class AddressTranslator extends WalletAssetsSender {
     return new AddressTranslator(this._config);
   }
 
-  private getDepositionLockArgs(
-    ownerLockHash: Hash,
-    layer2_lock_args: HexString,
-    cancelTimeout: PackedSince = "0xc00000000002a300"
-  ): DepositionLockArgs {
-    const rollup_type_hash = getRollupTypeHash(
-      this._config.rollup_type_script as Script
-    );
-    const depositionLockArgs: DepositionLockArgs = {
-      owner_lock_hash: ownerLockHash,
-      layer2_lock: {
-        code_hash: this._deploymentConfig.eth_account_lock.code_hash,
-        hash_type: this._deploymentConfig.eth_account_lock.hash_type as
-          | "data"
-          | "type",
-        args: rollup_type_hash + layer2_lock_args.slice(2),
-      },
-      cancel_timeout: cancelTimeout, // relative timestamp, 2 days
+  private generateDepositLock(ownerLockHashLayerOne: string, ethAddress: string): Script {
+    const layer2Lock: Script = {
+      code_hash: this._config.eth_account_lock_script_type_hash,
+      hash_type: "type",
+      args:
+        this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
-    return depositionLockArgs;
+
+    const depositLockArgs = {
+      owner_lock_hash: ownerLockHashLayerOne,
+      layer2_lock: layer2Lock,
+      cancel_timeout: BI.from("0xc000000000093a81"),
+      registry_id: 2,
+    };
+
+    const depositLockArgsHexString: HexString = new toolkit.Reader(
+      V1DepositLockArgs.pack(depositLockArgs),
+    ).serializeJson();
+
+    return {
+      code_hash: this._deploymentConfig.deposition_lock.code_hash,
+      hash_type: this._deploymentConfig.deposition_lock.hash_type,
+      args: this._config.rollup_type_hash + depositLockArgsHexString.slice(2),
+    };
   }
 
   getLayer2DepositAddressByOwnerLock(
     ownerLockHashLayerOne: string,
     ethLockArgsLayerTwo: string
   ): string {
-    const depositionLockArgs: DepositionLockArgs = this.getDepositionLockArgs(
-      ownerLockHashLayerOne,
-      ethLockArgsLayerTwo
-    );
-
-    const serializedArgs: HexString = serializeArgs(
-      depositionLockArgs,
-      this._config.rollup_type_script as Script
-    );
-    const depositionLock: Script = generateDepositionLock(
-      this._deploymentConfig,
-      serializedArgs
-    );
-
-    return this._provider.parseToAddress(depositionLock);
+    const depositLock = this.generateDepositLock(ownerLockHashLayerOne, ethLockArgsLayerTwo);
+    return this._provider.parseToAddress(depositLock);
   }
 
   async getDefaultLockLayer2DepositAddress(

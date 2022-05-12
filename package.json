@@ -12,7 +12,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "@ckb-lumos/lumos": "0.17.0-rc9",
+    "@ckb-lumos/lumos": "0.17.0-rc10",
+    "@ckb-lumos/codec": "0.17.0-rc10",
     "@ckitjs/base": "0.2.0",
     "@ckitjs/ckit": "0.2.0",
     "@ckitjs/utils": "0.2.0",

@@ -1,16 +1,6 @@
-import { RPC, Reader } from "ckb-js-toolkit";
+import { RPC } from "ckb-js-toolkit";
 import { Hash, HexString, Script } from "@ckb-lumos/base";
 import {
-  NormalizeL2Transaction,
-  NormalizeRawL2Transaction,
-  NormalizeWithdrawalRequest,
-} from "./normalizer";
-import {
-  L2Transaction,
-  RawL2Transaction,
-  WithdrawalRequest,
-  WithdrawalRequestExtra,
-  RunResult,
   Uint128,
   Uint32,
   LastL2BlockCommittedInfo,
@@ -18,14 +8,8 @@ import {
 export * from "./types";
 
 import * as core from "./schema_v1";
-import {
-  SerializeRawWithdrawalRequestV1, SerializeWithdrawalRequestExtra
-} from "./schema_v1";
-
 import * as normalizer from "./normalizer";
-export { core, normalizer, SerializeRawWithdrawalRequestV1,  };
-
-export type { WithdrawalRequestExtra }
+export { core, normalizer };
 
 export function numberToUInt32LE(value: number): HexString {
   const buf = Buffer.alloc(4);
@@ -88,39 +72,7 @@ export class Godwoken {
     return result;
   }
 
-  async _send(l2tx: L2Transaction, method_name: string) {
-    const data = new Reader(
-      core.SerializeL2Transaction(NormalizeL2Transaction(l2tx))
-    ).serializeJson();
-    return await this.rpcCall(method_name, data);
-  }
-
-  async executeL2Transaction(l2tx: L2Transaction): Promise<RunResult> {
-    return this._send(l2tx, "execute_l2transaction");
-  }
-
-  async submitL2Transaction(l2tx: L2Transaction): Promise<Hash> {
-    return this._send(l2tx, "submit_l2transaction");
-  }
-
-  async executeRawL2Transaction(rawL2Tx: RawL2Transaction): Promise<RunResult> {
-    const hex = new Reader(
-      core.SerializeRawL2Transaction(NormalizeRawL2Transaction(rawL2Tx))
-    ).serializeJson();
-    return await this.rpcCall("execute_raw_l2transaction", hex);
-  }
-
-  async submitWithdrawalRequest(request: WithdrawalRequest): Promise<void> {
-    const data = new Reader(
-      core.SerializeWithdrawalRequest(NormalizeWithdrawalRequest(request))
-    ).serializeJson();
-    return await this.rpcCall("submit_withdrawal_request", data);
-  }
-
-  async submitWithdrawalReqV1(reqExtra: WithdrawalRequestExtra): Promise<Hash> {
-    const data = new Reader(
-      SerializeWithdrawalRequestExtra(normalizer.NormalizeWithdrawalReqExtra(reqExtra))
-    ).serializeJson();
+  async submitWithdrawalRequest(data: HexString): Promise<Hash> {
     return await this.rpcCall("submit_withdrawal_request", data);
   }
 

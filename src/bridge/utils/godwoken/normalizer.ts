@@ -6,9 +6,6 @@ import {
     Script,
   } from "@ckb-lumos/base";
   import { normalizers, Reader } from "ckb-js-toolkit";
-  import { L2Transaction,
-    WithdrawalRequest, WithdrawalRequestExtra, WithdrawalRequestV1
-  } from "./types";
   
   // Taken for now from https://github.com/xxuejie/ckb-js-toolkit/blob/68f5ff709f78eb188ee116b2887a362123b016cc/src/normalizers.js#L17-L69,
   // later we can think about exposing those functions directly.
@@ -131,109 +128,7 @@ import {
     deposit_block_number: HexNumber;
     deposit_lock_args: DepositLockArgs;
   }
-  
-  export function NormalizeCustodianLockArgs(
-    args: object,
-    { debugPath = "custondian_lock_args" } = {}
-  ) {
-    return normalizeObject(debugPath, args, {
-      deposit_block_hash: normalizeRawData(32),
-      deposit_block_number: normalizeHexNumber(8),
-      deposit_lock_args: toNormalize(NormalizeDepositLockArgs),
-    });
-  }
-  
-  export function NormalizeRawL2Transaction(
-    rawL2Transaction: object,
-    { debugPath = "raw_l2_transaction" } = {}
-  ) {
-    return normalizeObject(debugPath, rawL2Transaction, {
-      from_id: normalizeHexNumber(4),
-      to_id: normalizeHexNumber(4),
-      nonce: normalizeHexNumber(4),
-      args: normalizeRawData(-1),
-    });
-  }
-  
-  export function NormalizeL2Transaction(
-    l2Transaction: L2Transaction,
-    { debugPath = "l2_transaction" } = {}
-  ) {
-    return normalizeObject(debugPath, l2Transaction, {
-      raw: toNormalize(NormalizeRawL2Transaction),
-      signature: normalizeRawData(-1),
-    });
-  }
-  
-  export function NormalizeRawWithdrawalRequest(
-    raw_request: object,
-    { debugPath = "raw_withdrawal_request" } = {}
-  ) {
-    return normalizeObject(debugPath, raw_request, {
-      nonce: normalizeHexNumber(4),
-      capacity: normalizeHexNumber(8),
-      amount: normalizeHexNumber(16),
-      sudt_script_hash: normalizeRawData(32),
-      account_script_hash: normalizeRawData(32),
-      sell_amount: normalizeHexNumber(16),
-      sell_capacity: normalizeHexNumber(8),
-      owner_lock_hash: normalizeRawData(32),
-      payment_lock_hash: normalizeRawData(32),
-      fee: toNormalize(NormalizeFee),
-    });
-  }
-  
-  export function NormalizeRawWithdrawalRequestV1(
-    raw_request_v1: object,
-    { debugPath = "raw_withdrawal_request" } = {}
-  ) {
-    return normalizeObject(debugPath, raw_request_v1, {
-      nonce: normalizeHexNumber(4),
-      chain_id: normalizeHexNumber(8),
-      // CKB amount
-      capacity: normalizeHexNumber(8),
-      // SUDT amount
-      amount: normalizeHexNumber(16),
-      sudt_script_hash: normalizeRawData(32),
-      // layer2 account_script_hash
-      account_script_hash: normalizeRawData(32),
-      // layer1 lock to withdraw after challenge period
-      owner_lock_hash: normalizeRawData(32),
-      // withdrawal fee, paid to block producer
-      fee: normalizeHexNumber(8),
-    });
-  }
-  
-  export function NormalizeWithdrawalRequestV1(
-    request_v1: WithdrawalRequestV1,
-    { debugPath = "withdrawal_request" } = {}
-  ) {
-    return normalizeObject(debugPath, request_v1, {
-      raw: toNormalize(NormalizeRawWithdrawalRequestV1),
-      signature: normalizeRawData(65),
-    });
-  }
-  
-  export function NormalizeWithdrawalReqExtra(
-    withdrawalReqExtra: WithdrawalRequestExtra,
-    { debugPath = "withdrawal_request" } = {}
-  ) {
-    return normalizeObject(debugPath, withdrawalReqExtra, {
-      request: toNormalize(NormalizeWithdrawalRequestV1),
-      owner_lock: toNormalize(normalizers.NormalizeScript),
-    });
-  }
-  
-  export function NormalizeWithdrawalRequest(
-    request: WithdrawalRequest,
-    { debugPath = "withdrawal_request" } = {}
-  ) {
-    return normalizeObject(debugPath, request, {
-      raw: toNormalize(NormalizeRawWithdrawalRequest),
-      signature: normalizeRawData(65),
-    });
-  }
-  
+
   export interface UnoinType {
     type: string;
     value: any;

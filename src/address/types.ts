@@ -1,11 +1,3 @@
-import { Script, Hash, PackedSince } from "@ckb-lumos/lumos";
-
-export interface DepositionLockArgs {
-  owner_lock_hash: Hash;
-  layer2_lock: Script;
-  cancel_timeout: PackedSince;
-}
-
 export interface IAddressTranslatorConfig {
   CKB_URL: string;
   RPC_URL: string;

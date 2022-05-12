@@ -8,7 +8,7 @@ describe('GodwokenWithdraw', () => {
         const translator = new AddressTranslator();
         await translator.init('testnet');
 
-        const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';
+        const GODWOKEN_RPC_URL = 'https://godwoken-testnet-v1.ckbapp.dev';
         const CONFIG: GodwokenWithdrawConfig = {
             creatorAccountId: '0x6',
             ethAccountLockScriptTypeHash: '',
@@ -19,11 +19,7 @@ describe('GodwokenWithdraw', () => {
                 hash_type: 'type',
                 args: ''
             },
-            withdrawalLockScript: {
-                code_hash: '',
-                hash_type: 'type',
-                args: ''
-            }
+            withdrawalLockScriptTypeHash: ''
         };
 
         const withdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, translator);

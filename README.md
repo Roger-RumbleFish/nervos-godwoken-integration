@@ -72,7 +72,7 @@ const txHash = await assetSender.sendSUDT(
 ## Withdraw CKB from Layer 2 to Layer 1
 
 ```
-const GODWOKEN_RPC_URL = 'https://godwoken-testnet-web3-v1-rpc.ckbapp.dev';
+const GODWOKEN_RPC_URL = 'https://godwoken-testnet-v1.ckbapp.dev';
 const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
 await godwokenWithdraw.init('testnet');
 
