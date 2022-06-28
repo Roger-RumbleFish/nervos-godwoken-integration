@@ -52,7 +52,7 @@ export class WalletBase {
         this._wallet = wallet;
     }
 
-    public async init(chain: 'testnet' | 'mainnet' | CkitInitOptions) {
+    public async initWalletProvider(chain: 'testnet' | 'mainnet' | CkitInitOptions) {
         if (typeof chain === 'string') {
           if (chain === 'mainnet') {
             await this._provider.init(predefined.Lina);

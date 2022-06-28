@@ -9,8 +9,8 @@ describe("BridgeRPCHandler", () => {
     );
     const ethAddress = "0x018332E7b64E01246BfC981C75f8f5A5B18115F0";
 
-    const translator = new AddressTranslator();
-    await translator.init("testnet");
+    const translator = new AddressTranslator('testnet');
+    await translator.init();
 
     const recipient = translator.ethAddressToCkbAddress(ethAddress);
     const sender = translator.ethAddressToCkbAddress(ethAddress);

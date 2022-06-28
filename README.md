@@ -7,8 +7,8 @@ https://www.npmjs.com/package/nervos-godwoken-integration
 ```
 import { AddressTranslator } from 'nervos-godwoken-integration';
 
-const addressTranslator = new AddressTranslator();
-await addressTranslator.init('testnet');
+const addressTranslator = new AddressTranslator('testnet');
+await addressTranslator.init();
 
 await addressTranslator.connectWallet();
 
@@ -28,8 +28,8 @@ import { AddressTranslator } from 'nervos-godwoken-integration';
 
 const ETHEREUM_PRIVATE_KEY = '0x...';
 
-const addressTranslator = new AddressTranslator();
-await addressTranslator.init('testnet');
+const addressTranslator = new AddressTranslator('testnet');
+await addressTranslator.init();
 
 await addressTranslator.connectWallet(ETHEREUM_PRIVATE_KEY);
 
@@ -48,11 +48,11 @@ import { AddressTranslator, WalletAssetsSender  } from "nervos-godwoken-integrat
 const PRIVATE_KEY = '0xd9066ff9f753a1898709b568119055660a77d9aae4d7a4ad677b8fb3d2a571e5';
 const DCKB_ISSUER_HASH = '0xc43009f083e70ae3fee342d59b8df9eec24d669c1c3a3151706d305f5362c37e';
 
-const translator = new AddressTranslator();
-await translator.init('testnet');
+const translator = new AddressTranslator('testnet');
+await translator.init();
 
 const assetSender = new WalletAssetsSender('https://testnet.ckb.dev/rpc', 'https://testnet.ckb.dev/indexer');
-await assetSender.init('testnet');
+await assetSender.initWalletProvider('testnet');
 
 await assetSender.connectWallet(PRIVATE_KEY);
 const ethAddress = assetSender.getConnectedWalletAddress();
@@ -74,7 +74,7 @@ const txHash = await assetSender.sendSUDT(
 ```
 const GODWOKEN_RPC_URL = 'https://godwoken-testnet-v1.ckbapp.dev';
 const godwokenWithdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, addressTranslator);
-await godwokenWithdraw.init('testnet');
+await godwokenWithdraw.initWalletProvider('testnet');
 
 await godwokenWithdraw.connectWallet();
 
@@ -87,7 +87,7 @@ await godwokenWithdraw.withdraw(ethAddress, amount);
 import { WalletAssetsSender  } from "nervos-godwoken-integration";
 
 const assetSender = new WalletAssetsSender('https://testnet.ckb.dev/rpc', 'https://testnet.ckb.dev/indexer');
-await assetSender.init('testnet');
+await assetSender.initWalletProvider('testnet');
 await assetSender.connectWallet(); // you can also pass private key
 
 const dckbIssuerHash = '0xc43009f083e70ae3fee342d59b8df9eec24d669c1c3a3151706d305f5362c37e';

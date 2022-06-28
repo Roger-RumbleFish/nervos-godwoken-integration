@@ -2,8 +2,8 @@ import { AddressTranslator } from '../src/address';
 
 describe('AddressTranslator', () => {
     test('ethAddressToCkbAddress() correctly transforms ethereum address to portal wallet address locked by ethereum key on Nervos Layer 1 testnet', async () => {
-        const translator = new AddressTranslator();
-        await translator.init('testnet');
+        const translator = new AddressTranslator('testnet');
+        await translator.init();
         
         const ethAddress = '0x018332E7b64E01246BfC981C75f8f5A5B18115F0';
     
@@ -13,7 +13,7 @@ describe('AddressTranslator', () => {
     });
 
     test('getLayer2DepositAddress() throws friendly error when init() has not been called', async () => {
-        const translator = new AddressTranslator();
+        const translator = new AddressTranslator('testnet');
 
         const ethAddress = '0x018332E7b64E01246BfC981C75f8f5A5B18115F0';
 
@@ -26,8 +26,8 @@ describe('AddressTranslator', () => {
     });
 
     test('getLayer2DepositAddress() correctly calculates Layer 2 deposit address secured by Omni Lock on Layer 1', async () => {
-        const translator = new AddressTranslator();
-        await translator.init('testnet');
+        const translator = new AddressTranslator('testnet');
+        await translator.init();
 
         const ethAddress = '0xD173313A51f8fc37BcF67569b463abd89d81844f';
 
@@ -37,8 +37,8 @@ describe('AddressTranslator', () => {
     });
 
     test('getConnectedWalletAddress() returns correct Ethereum address when private key wallet is used', async () => {
-        const translator = new AddressTranslator();
-        await translator.init('testnet');
+        const translator = new AddressTranslator('testnet');
+        await translator.init();
 
         const ETH_ADDRESS = '0xd173313a51f8fc37bcf67569b463abd89d81844f';
         const PRIVATE_KEY = '0xd9066ff9f753a1898709b568119055660a77d9aae4d7a4ad677b8fb3d2a571e5';

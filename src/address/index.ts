@@ -6,9 +6,11 @@ import {
   BI,
   toolkit,
 } from "@ckb-lumos/lumos";
-import { helpers } from "@ckitjs/ckit";
+import { CkitInitOptions, helpers } from "@ckitjs/ckit";
+import { RPC } from "ckb-js-toolkit";
 
-import defaultConfig from "../config/config.json";
+import testnetConfig from "../config/testnet.json";
+import mainnetConfig from "../config/mainnet.json";
 import { IAddressTranslatorConfig } from "./types";
 import { DeploymentConfig } from "../config/types";
 import {
@@ -16,60 +18,87 @@ import {
   generateDeployConfig,
 } from "./helpers";
 import { WalletAssetsSender } from "../wallet-assets-sender";
-import { RPC } from "ckb-js-toolkit";
 import { V1DepositLockArgs } from "../bridge/utils/godwoken/schemas/codecV1";
 
 const { CkbAmount } = helpers;
 
 export class AddressTranslator extends WalletAssetsSender {
-  public _config: IAddressTranslatorConfig;
+  public config: IAddressTranslatorConfig;
+  public networkType: 'testnet' | 'mainnet' | 'devnet';
 
   private _deploymentConfig: DeploymentConfig;
-
   private _ckbRpc: RPC;
 
-  constructor(config?: IAddressTranslatorConfig) {
-    let configToSet;
+  constructor(networkType: 'testnet' | 'mainnet' | 'devnet', config?: IAddressTranslatorConfig) {
+    let configToSet: IAddressTranslatorConfig | undefined;
 
-    if (config) {
+    if (networkType === 'testnet') {
+      configToSet = {
+        CKB_URL: testnetConfig.ckb_url,
+        RPC_URL: testnetConfig.rpc_url,
+        INDEXER_URL: testnetConfig.indexer_url,
+        deposit_lock_script_type_hash:
+          testnetConfig.deposit_lock.script_type_hash,
+        eth_account_lock_script_type_hash:
+          testnetConfig.eth_account_lock.script_type_hash,
+        rollup_type_script: testnetConfig.chain.rollup_type_script,
+        rollup_type_hash: testnetConfig.rollup_script_hash,
+        rc_lock_script_type_hash: testnetConfig.rc_lock_script_type_hash,
+      };
+    } else if (networkType === 'mainnet') {
+      configToSet = {
+        CKB_URL: mainnetConfig.ckb_url,
+        RPC_URL: mainnetConfig.rpc_url,
+        INDEXER_URL: mainnetConfig.indexer_url,
+        deposit_lock_script_type_hash:
+          mainnetConfig.deposit_lock.script_type_hash,
+        eth_account_lock_script_type_hash:
+          mainnetConfig.eth_account_lock.script_type_hash,
+        rollup_type_script: mainnetConfig.chain.rollup_type_script,
+        rollup_type_hash: mainnetConfig.rollup_script_hash,
+        rc_lock_script_type_hash: mainnetConfig.rc_lock_script_type_hash,
+      };
+    } else if (networkType === 'devnet' && typeof (config) !== 'undefined') {
       configToSet = config;
     } else {
-      configToSet = {
-        CKB_URL: defaultConfig.ckb_url,
-        RPC_URL: defaultConfig.rpc_url,
-        INDEXER_URL: defaultConfig.indexer_url,
-        deposit_lock_script_type_hash:
-          defaultConfig.deposit_lock.script_type_hash,
-        eth_account_lock_script_type_hash:
-          defaultConfig.eth_account_lock.script_type_hash,
-        rollup_type_script: defaultConfig.chain.rollup_type_script,
-        rollup_type_hash: defaultConfig.rollup_script_hash,
-        rc_lock_script_type_hash: defaultConfig.rc_lock_script_type_hash,
-      };
+      throw new Error('Invalid constructor arguments of AddressTranslator class.');
     }
 
     super(configToSet.CKB_URL, configToSet.INDEXER_URL);
 
-    this._config = configToSet;
+    this.networkType = networkType;
+    this.config = configToSet;
 
     this._deploymentConfig = generateDeployConfig(
-      this._config.deposit_lock_script_type_hash,
-      this._config.eth_account_lock_script_type_hash
+      this.config.deposit_lock_script_type_hash,
+      this.config.eth_account_lock_script_type_hash
     );
 
-    this._ckbRpc = new RPC(this._config.RPC_URL);
+    this._ckbRpc = new RPC(this.config.RPC_URL);
+  }
+
+  public async init(customCkitInitOptions?: CkitInitOptions) {
+    if (this.networkType === 'devnet') {
+      if (!customCkitInitOptions) {
+        throw new Error('customCkitInitOptions have to be passed to init() function if networkType is devnet');
+      }
+
+      return super.initWalletProvider(customCkitInitOptions);
+    }
+    
+    return super.initWalletProvider(this.networkType);
   }
 
   public clone(): AddressTranslator {
-    return new AddressTranslator(this._config);
+    return new AddressTranslator(this.networkType, this.config);
   }
 
   private generateDepositLock(ownerLockHashLayerOne: string, ethAddress: string): Script {
     const layer2Lock: Script = {
-      code_hash: this._config.eth_account_lock_script_type_hash,
+      code_hash: this.config.eth_account_lock_script_type_hash,
       hash_type: "type",
       args:
-        this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
+        this.config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
 
     const depositLockArgs = {
@@ -86,7 +115,7 @@ export class AddressTranslator extends WalletAssetsSender {
     return {
       code_hash: this._deploymentConfig.deposition_lock.code_hash,
       hash_type: this._deploymentConfig.deposition_lock.hash_type,
-      args: this._config.rollup_type_hash + depositLockArgsHexString.slice(2),
+      args: this.config.rollup_type_hash + depositLockArgsHexString.slice(2),
     };
   }
 
@@ -176,9 +205,9 @@ export class AddressTranslator extends WalletAssetsSender {
 
   async checkLayer2AccountExist(ethereumAddress: HexString): Promise<boolean> {
     const script: Script = {
-      code_hash: this._config.eth_account_lock_script_type_hash,
+      code_hash: this.config.eth_account_lock_script_type_hash,
       hash_type: "type",
-      args: this._config.rollup_type_hash + ethereumAddress.slice(2),
+      args: this.config.rollup_type_hash + ethereumAddress.slice(2),
     };
 
     const userLockHash = utils.computeScriptHash(script);
@@ -218,9 +247,9 @@ export class AddressTranslator extends WalletAssetsSender {
 
   getLayer2EthLockHash(ethAddress: string): string {
     const layer2Lock: Script = {
-      code_hash: this._config.eth_account_lock_script_type_hash,
+      code_hash: this.config.eth_account_lock_script_type_hash,
       hash_type: "type",
-      args: this._config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
+      args: this.config.rollup_type_hash + ethAddress.slice(2).toLowerCase(),
     };
 
     return utils.computeScriptHash(layer2Lock);
