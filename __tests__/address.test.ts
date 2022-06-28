@@ -61,5 +61,17 @@ describe('AddressTranslator', () => {
         
             expect(omniLockLayer2DepositAddress).toBe('ckb1qnlkqfvp7pmx0mh4ggeve6zse09zcsvtxsvxz8qn9l9gf8g7mnth289rtj6lmf9a2sh8rk22d405crf9t4kklwnncsw0ghfxj0jekvrj4yqqqqq5qqqqqdqqqqqf6qqqqzjsqqqq8llkausevl5s32nfd30rdw2gn46u7quu8vsrkvmledtk7nqfjwyxjqqqqqgqqqqqxqqqqqp3qqqqqztd7fj08rllqle6e5ccn9dtctr34c89qspklcetcwx4kcphxex5qy6qqqqqrj34ed0a5j74gtn3m99x6h6vp5j46mt0hfeug885t5nf8evmxpedzue38fgl3lphhnm826d5vw4a38vps38czwsfqqqqqqxqqgqqqqq90rq3r');
         });
+
+        test('getConnectedWalletAddress() returns correct Ethereum address when private key wallet is used', async () => {
+            const translator = new AddressTranslator('mainnet');
+            await translator.init();
+    
+            const ETH_ADDRESS = '0xd173313a51f8fc37bcf67569b463abd89d81844f';
+            const PRIVATE_KEY = '0xd9066ff9f753a1898709b568119055660a77d9aae4d7a4ad677b8fb3d2a571e5';
+    
+            await translator.connectWallet(PRIVATE_KEY);
+            expect(translator.getConnectedWalletAddress()).toBe(ETH_ADDRESS);
+            expect(await translator.getConnectedWalletCKBAddress()).toBe('ckb1qj0n46hjl3pe2jwtepcvv5ehf9p6l94qvk9addgmarvfsvvrum6j7qw3wvcn550clsmmean4dx6x827cnkqcgncq9d0ye9');
+        });
     })
 });
