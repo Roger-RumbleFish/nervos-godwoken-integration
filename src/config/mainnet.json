@@ -1,0 +1,20 @@
+{
+  "ckb_url": "https://mainnet.ckb.dev",
+  "rpc_url": "https://v1.mainnet.godwoken.io/rpc",
+  "indexer_url": "https://mainnet.ckb.dev/indexer",
+  "chain": {
+    "rollup_type_script": {
+      "code_hash": "0xfef1d086d9f74d143c60bf03bd04bab29200dbf484c801c72774f2056d4c6718",
+      "hash_type": "type",
+      "args": "0xab21bfe2bf85927bb42faaf3006a355222e24d5ea1d4dec0e62f53a8e0c04690"
+    }
+  },
+  "deposit_lock": {
+    "script_type_hash": "0xff602581f07667eef54232cce850cbca2c418b3418611c132fca849d1edcd775"
+  },
+  "eth_account_lock": {
+    "script_type_hash": "0x096df264f38fff07f3acd318995abc2c71ae0e504036fe32bc38d5b6037364d4"
+  },
+  "rollup_script_hash": "0x1ca35cb5fda4bd542e71d94a6d5f4c0d255d6d6fba73c41cf45d2693e59b3072",
+  "rc_lock_script_type_hash": "0x9f3aeaf2fc439549cbc870c653374943af96a0658bd6b51be8d8983183e6f52f"
+}

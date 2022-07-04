@@ -27,7 +27,7 @@ export type { Script, WithdrawalRequest, WithdrawalRequestFromApi };
 
 export class GodwokenWithdraw extends WalletBase {
   constructor(public godwokenRpcUrl: string, public config: GodwokenWithdrawConfig, public addressTranslator: AddressTranslator) {
-    super(addressTranslator._config.CKB_URL, addressTranslator._config.INDEXER_URL);
+    super(addressTranslator.config.CKB_URL, addressTranslator.config.INDEXER_URL);
   }
 
   async fetchWithdrawalRequests(

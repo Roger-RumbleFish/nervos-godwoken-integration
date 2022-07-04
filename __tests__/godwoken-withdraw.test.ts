@@ -5,8 +5,8 @@ jest.setTimeout(20000);
 
 describe('GodwokenWithdraw', () => {
     test('canWithdrawAmount() works', async () => {
-        const translator = new AddressTranslator();
-        await translator.init('testnet');
+        const translator = new AddressTranslator('testnet');
+        await translator.init();
 
         const GODWOKEN_RPC_URL = 'https://godwoken-testnet-v1.ckbapp.dev';
         const CONFIG: GodwokenWithdrawConfig = {
@@ -23,7 +23,7 @@ describe('GodwokenWithdraw', () => {
         };
 
         const withdraw = new GodwokenWithdraw(GODWOKEN_RPC_URL, CONFIG, translator);
-        await withdraw.init('testnet');
+        await withdraw.initWalletProvider('testnet');
 
         expect(withdraw.canWithdrawAmount('0').canWithdraw).toBe(false);
         expect(withdraw.canWithdrawAmount('1').canWithdraw).toBe(false);
